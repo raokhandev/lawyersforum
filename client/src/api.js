@@ -19,10 +19,10 @@ async function request(path, options = {}) {
 }
 
 export const api = {
-  lawyers: () => request('/api/lawyers'),
+  authors: () => request('/api/authors'),
   articles: () => request('/api/articles'),
   article: (id) => request(`/api/articles/${id}`),
   login: (password) => request('/api/admin/login', { method: 'POST', body: JSON.stringify({ password }) }),
-  addLawyer: (body) => request('/api/admin/lawyers', { method: 'POST', body: JSON.stringify(body) }),
+  addAuthor: (body) => request('/api/admin/authors', { method: 'POST', body: JSON.stringify(body) }),
   addArticle: (body) => request('/api/admin/articles', { method: 'POST', body: JSON.stringify(body) }),
 }

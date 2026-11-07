@@ -25,7 +25,7 @@ function Login({ onLogin }) {
   )
 }
 
-const emptyLawyer = { name: '', title: '', practice_area: '', email: '', photo_url: '', bio: '' }
+const emptyAuthor = { name: '', title: '', practice_area: '', email: '', photo_url: '', bio: '' }
 const emptyArticle = { title: '', summary: '', author_id: '', content: '' }
 
 function Form({ initial, onSubmit, children, submitLabel }) {
@@ -51,7 +51,7 @@ function Form({ initial, onSubmit, children, submitLabel }) {
 
 function Dashboard({ onLogout, onAuthError }) {
   const [version, setVersion] = useState(0)
-  const { data: lawyers } = useFetch(api.lawyers, [version])
+  const { data: authors } = useFetch(api.authors, [version])
 
   const guard = (fn) => async (v) => {
     try { await fn(v); setVersion((n) => n + 1) }
@@ -66,8 +66,8 @@ function Dashboard({ onLogout, onAuthError }) {
       </div>
       <div className="admin-grid">
         <section>
-          <h2>Add lawyer</h2>
-          <Form initial={emptyLawyer} onSubmit={guard(api.addLawyer)} submitLabel="Add lawyer">
+          <h2>Add author</h2>
+          <Form initial={emptyAuthor} onSubmit={guard(api.addAuthor)} submitLabel="Add author">
             {(v, set) => (
               <>
                 <label>Name *<input value={v.name} onChange={set('name')} required /></label>
@@ -89,7 +89,7 @@ function Dashboard({ onLogout, onAuthError }) {
                 <label>Author
                   <select value={v.author_id} onChange={set('author_id')}>
                     <option value="">— None —</option>
-                    {lawyers && lawyers.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+                    {authors && authors.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
                   </select>
                 </label>
                 <label>Summary<input value={v.summary} onChange={set('summary')} maxLength={500} /></label>

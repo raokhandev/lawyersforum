@@ -11,9 +11,9 @@ app.use(express.json({ limit: '1mb' }));
 const str = (v, max) => String(v ?? '').trim().slice(0, max);
 
 // ---------- Public ----------
-app.get('/api/lawyers', async (_req, res, next) => {
+app.get('/api/authors', async (_req, res, next) => {
   try {
-    const [rows] = await pool.query('SELECT * FROM lawyers ORDER BY name');
+    const [rows] = await pool.query('SELECT * FROM authors ORDER BY name');
     res.json(rows);
   } catch (e) { next(e); }
 });
@@ -22,7 +22,7 @@ app.get('/api/articles', async (_req, res, next) => {
   try {
     const [rows] = await pool.query(
       `SELECT a.id, a.title, a.summary, a.created_at, a.author_id, l.name AS author_name
-       FROM articles a LEFT JOIN lawyers l ON l.id = a.author_id
+       FROM articles a LEFT JOIN authors l ON l.id = a.author_id
        ORDER BY a.created_at DESC, a.id DESC`
     );
     res.json(rows);
@@ -33,7 +33,7 @@ app.get('/api/articles/:id', async (req, res, next) => {
   try {
     const [rows] = await pool.query(
       `SELECT a.*, l.name AS author_name
-       FROM articles a LEFT JOIN lawyers l ON l.id = a.author_id WHERE a.id = ?`,
+       FROM articles a LEFT JOIN authors l ON l.id = a.author_id WHERE a.id = ?`,
       [req.params.id]
     );
     if (!rows.length) return res.status(404).json({ error: 'Article not found.' });
@@ -44,12 +44,12 @@ app.get('/api/articles/:id', async (req, res, next) => {
 // ---------- Admin ----------
 app.post('/api/admin/login', login);
 
-app.post('/api/admin/lawyers', requireAdmin, async (req, res, next) => {
+app.post('/api/admin/authors', requireAdmin, async (req, res, next) => {
   try {
     const name = str(req.body.name, 150);
     if (!name) return res.status(400).json({ error: 'Name is required.' });
     const [r] = await pool.query(
-      'INSERT INTO lawyers (name, title, practice_area, bio, email, photo_url) VALUES (?, ?, ?, ?, ?, ?)',
+      'INSERT INTO authors (name, title, practice_area, bio, email, photo_url) VALUES (?, ?, ?, ?, ?, ?)',
       [name, str(req.body.title, 150), str(req.body.practice_area, 150),
        str(req.body.bio, 5000), str(req.body.email, 190), str(req.body.photo_url, 500)]
     );

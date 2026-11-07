@@ -62,6 +62,7 @@ Layout: `server/` (Express + mysql2, ES modules) and `client/` (Vite + React + r
 First-time setup:
 - `cd server && npm install && cp .env.example .env` (then edit `.env`: DB credentials, `ADMIN_PASSWORD`, `JWT_SECRET`)
 - `cd server && npm run db:setup` creates the database and tables from `server/db/schema.sql`
+- `cd server && npm run db:seed` (optional) inserts dummy authors and articles if the tables are empty
 - `cd client && npm install`
 
 Run (two terminals):
@@ -70,6 +71,6 @@ Run (two terminals):
 
 Build the client: `cd client && npm run build`.
 
-Pages: Home (`/`), Lawyers (`/lawyers`), Articles (`/articles`, `/articles/:id`), Admin (`/admin`, password login; adds lawyers and articles). Admin API routes require a Bearer token from `POST /api/admin/login`.
+Pages: Home (`/`), Authors (`/authors`), Articles (`/articles`, `/articles/:id`), Admin (`/admin`, password login; adds authors and articles). Admin API routes require a Bearer token from `POST /api/admin/login`.
 
 No tests yet.

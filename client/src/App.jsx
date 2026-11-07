@@ -1,6 +1,6 @@
 import { Link, NavLink, Route, Routes } from 'react-router-dom'
 import Home from './pages/Home.jsx'
-import Lawyers from './pages/Lawyers.jsx'
+import Authors from './pages/Authors.jsx'
 import Articles from './pages/Articles.jsx'
 import ArticleDetail from './pages/ArticleDetail.jsx'
 import Admin from './pages/Admin.jsx'
@@ -13,7 +13,7 @@ export default function App() {
           <Link to="/"><img className="logo" src="/assets/logo-long.png" alt="Lawyers Forum" /></Link>
           <nav>
             <NavLink to="/" end>Home</NavLink>
-            <NavLink to="/lawyers">Lawyers</NavLink>
+            <NavLink to="/authors">Authors</NavLink>
             <NavLink to="/articles">Articles</NavLink>
             <NavLink to="/admin">Admin</NavLink>
           </nav>
@@ -22,7 +22,7 @@ export default function App() {
       <main className="container">
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/lawyers" element={<Lawyers />} />
+          <Route path="/authors" element={<Authors />} />
           <Route path="/articles" element={<Articles />} />
           <Route path="/articles/:id" element={<ArticleDetail />} />
           <Route path="/admin" element={<Admin />} />
