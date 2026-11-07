@@ -15,6 +15,9 @@ const authors = [
 ];
 
 const articles = [
+  { a: 2, days: 1, title: 'Data Protection Basics for Small Businesses',
+    summary: 'What personal data you hold, why you hold it, and the simple steps that keep you compliant.',
+    content: 'Even a small business handles personal data: customer emails, staff records, delivery addresses. Data protection law applies regardless of size, so it pays to know what you hold and why.\n\nStart with a simple inventory of the data you collect, where it is stored and who can see it. Collect only what you need, keep it only as long as necessary, and tell people clearly how you will use it.\n\nHave a plan for breaches, too. Knowing who to notify, and how quickly, turns a crisis into a manageable incident.' },
   { a: 0, days: 2, title: 'What Every Founder Should Know Before Taking Investment',
     summary: 'Term sheets, dilution and control: the clauses that matter most in a first funding round.',
     content: 'Raising your first round of investment is exciting, but the paperwork can shape your company for years. Before signing anything, take time to understand how each clause affects ownership and control.\n\nDilution is the most visible effect: every new share issued reduces the percentage you hold. Less obvious are liquidation preferences, which decide who is paid first, and how much, when the company is sold.\n\nBoard composition and veto rights also deserve attention. A small number of protective provisions can give investors a say over decisions that founders assume they control. Get advice early, and negotiate while you still have leverage.' },

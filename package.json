@@ -1,0 +1,9 @@
+{
+  "name": "lawyersforum",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "npm --prefix server ci && npm --prefix client ci --include=dev && npm --prefix client run build",
+    "start": "node server/src/index.js"
+  }
+}

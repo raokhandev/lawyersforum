@@ -1,5 +1,4 @@
-CREATE DATABASE IF NOT EXISTS lawyersforum CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE lawyersforum;
+-- The database is created and selected by src/setupDb.js (uses DB_NAME).
 
 CREATE TABLE IF NOT EXISTS authors (
   id INT AUTO_INCREMENT PRIMARY KEY,

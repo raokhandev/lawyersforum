@@ -1,8 +1,14 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import path from 'node:path';
+import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { pool } from './db.js';
 import { login, requireAdmin } from './auth.js';
+
+// Built React site (created by `npm run build` at the repo root).
+const clientDist = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../client/dist');
 
 const app = express();
 app.use(cors());
@@ -70,6 +76,12 @@ app.post('/api/admin/articles', requireAdmin, async (req, res, next) => {
     res.status(201).json({ id: r.insertId });
   } catch (e) { next(e); }
 });
+
+// Serve the React site in production, with client-side routes falling back to index.html.
+if (fs.existsSync(path.join(clientDist, 'index.html'))) {
+  app.use(express.static(clientDist));
+  app.get(/^\/(?!api\/).*/, (_req, res) => res.sendFile(path.join(clientDist, 'index.html')));
+}
 
 app.use((err, _req, res, _next) => {
   console.error(err);
