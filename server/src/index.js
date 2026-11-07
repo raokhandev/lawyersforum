@@ -77,6 +77,23 @@ app.post('/api/admin/articles', requireAdmin, async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+app.delete('/api/admin/authors/:id', requireAdmin, async (req, res, next) => {
+  try {
+    // Their articles are kept; the FK sets author_id to NULL.
+    const [r] = await pool.query('DELETE FROM authors WHERE id = ?', [req.params.id]);
+    if (!r.affectedRows) return res.status(404).json({ error: 'Author not found.' });
+    res.json({ ok: true });
+  } catch (e) { next(e); }
+});
+
+app.delete('/api/admin/articles/:id', requireAdmin, async (req, res, next) => {
+  try {
+    const [r] = await pool.query('DELETE FROM articles WHERE id = ?', [req.params.id]);
+    if (!r.affectedRows) return res.status(404).json({ error: 'Article not found.' });
+    res.json({ ok: true });
+  } catch (e) { next(e); }
+});
+
 // Serve the React site in production, with client-side routes falling back to index.html.
 if (fs.existsSync(path.join(clientDist, 'index.html'))) {
   app.use(express.static(clientDist));

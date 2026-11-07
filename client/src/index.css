@@ -89,3 +89,11 @@ nav a:hover, nav a.active { border-bottom-color: var(--color-teal); }
 @media (max-width: 560px) {
   .showcase { grid-template-columns: 1fr; }
 }
+
+/* Admin: manage lists */
+.manage-list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--color-border); border-radius: 6px; max-height: 420px; overflow-y: auto; }
+.manage-list li { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--color-border); }
+.manage-list li:last-child { border-bottom: 0; }
+.manage-list small { color: #5a6b7d; }
+.btn-danger { background: #fff; color: #b3261e; border: 1px solid #b3261e; border-radius: 6px; padding: 5px 12px; font: inherit; font-weight: 600; cursor: pointer; flex-shrink: 0; }
+.btn-danger:hover { background: #b3261e; color: #fff; }

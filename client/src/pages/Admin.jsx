@@ -52,10 +52,22 @@ function Form({ initial, onSubmit, children, submitLabel }) {
 function Dashboard({ onLogout, onAuthError }) {
   const [version, setVersion] = useState(0)
   const { data: authors } = useFetch(api.authors, [version])
+  const { data: articles } = useFetch(api.articles, [version])
+  const [actionError, setActionError] = useState('')
 
   const guard = (fn) => async (v) => {
     try { await fn(v); setVersion((n) => n + 1) }
     catch (err) { if (err.status === 401) onAuthError(); throw err }
+  }
+
+  async function remove(fn, message) {
+    if (!window.confirm(message)) return
+    setActionError('')
+    try { await fn(); setVersion((n) => n + 1) }
+    catch (err) {
+      if (err.status === 401) onAuthError()
+      else setActionError(err.message)
+    }
   }
 
   return (
@@ -99,6 +111,41 @@ function Dashboard({ onLogout, onAuthError }) {
               </>
             )}
           </Form>
+        </section>
+      </div>
+
+      <h2 className="section-title">Manage content</h2>
+      {actionError && <p className="error">{actionError}</p>}
+      <div className="admin-grid">
+        <section>
+          <h3>Authors ({authors ? authors.length : '…'})</h3>
+          <ul className="manage-list">
+            {authors && authors.map((a) => (
+              <li key={a.id}>
+                <span>{a.name}{a.title ? <small> · {a.title}</small> : null}</span>
+                <button className="btn-danger" onClick={() => remove(
+                  () => api.deleteAuthor(a.id),
+                  `Delete author "${a.name}"? Their articles will stay but show no author.`
+                )}>Delete</button>
+              </li>
+            ))}
+            {authors && authors.length === 0 && <li>No authors.</li>}
+          </ul>
+        </section>
+        <section>
+          <h3>Articles ({articles ? articles.length : '…'})</h3>
+          <ul className="manage-list">
+            {articles && articles.map((a) => (
+              <li key={a.id}>
+                <span>{a.title}{a.author_name ? <small> · {a.author_name}</small> : null}</span>
+                <button className="btn-danger" onClick={() => remove(
+                  () => api.deleteArticle(a.id),
+                  `Delete article "${a.title}"? This cannot be undone.`
+                )}>Delete</button>
+              </li>
+            ))}
+            {articles && articles.length === 0 && <li>No articles.</li>}
+          </ul>
         </section>
       </div>
     </>

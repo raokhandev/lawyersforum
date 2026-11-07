@@ -25,4 +25,6 @@ export const api = {
   login: (password) => request('/api/admin/login', { method: 'POST', body: JSON.stringify({ password }) }),
   addAuthor: (body) => request('/api/admin/authors', { method: 'POST', body: JSON.stringify(body) }),
   addArticle: (body) => request('/api/admin/articles', { method: 'POST', body: JSON.stringify(body) }),
+  deleteAuthor: (id) => request(`/api/admin/authors/${id}`, { method: 'DELETE' }),
+  deleteArticle: (id) => request(`/api/admin/articles/${id}`, { method: 'DELETE' }),
 }
