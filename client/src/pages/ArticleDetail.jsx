@@ -12,6 +12,7 @@ export default function ArticleDetail() {
       {error && <p className="error">{error}</p>}
       {data && (
         <article className="article">
+          {data.image_url && <img className="article-image" src={data.image_url} alt="" />}
           <h1>{data.title}</h1>
           <p className="meta">
             {data.author_name ? `By ${data.author_name} · ` : ''}

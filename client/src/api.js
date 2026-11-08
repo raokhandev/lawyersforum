@@ -18,7 +18,25 @@ async function request(path, options = {}) {
   return data
 }
 
+async function upload(file, kind) {
+  const body = new FormData()
+  body.append('file', file)
+  const res = await fetch(`/api/admin/upload?kind=${kind}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${getToken()}` },
+    body,
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) {
+    const err = new Error(data.error || 'Upload failed.')
+    err.status = res.status
+    throw err
+  }
+  return data.url
+}
+
 export const api = {
+  uploadImage: upload,
   authors: () => request('/api/authors'),
   author: (id) => request(`/api/authors/${id}`),
   articles: () => request('/api/articles'),
@@ -27,5 +45,6 @@ export const api = {
   addAuthor: (body) => request('/api/admin/authors', { method: 'POST', body: JSON.stringify(body) }),
   addArticle: (body) => request('/api/admin/articles', { method: 'POST', body: JSON.stringify(body) }),
   deleteAuthor: (id) => request(`/api/admin/authors/${id}`, { method: 'DELETE' }),
+  setArticleSlot: (id, slot) => request(`/api/admin/articles/${id}/slot`, { method: 'PUT', body: JSON.stringify({ slot }) }),
   deleteArticle: (id) => request(`/api/admin/articles/${id}`, { method: 'DELETE' }),
 }

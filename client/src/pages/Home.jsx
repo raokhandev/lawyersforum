@@ -2,8 +2,43 @@ import { Link } from 'react-router-dom'
 import { api } from '../api.js'
 import useFetch from '../useFetch.js'
 import ArticleCard from '../components/ArticleCard.jsx'
+import { EDITOR_NAME } from '../config.js'
+
+// Home page slots the admin can pin articles to (see Admin page). Empty slots are auto-filled with the newest unpinned articles.
+const SLOTS = ['featured', 'left1', 'left2', 'bottom1', 'bottom2', 'bottom3']
 
 const fmt = (d) => new Date(d).toLocaleDateString()
+
+// Pinned articles take their slot; remaining slots are filled in order from the unpinned articles (newest first).
+function placeSlots(articles, order) {
+  const out = {}
+  const pinned = new Set()
+  for (const a of articles) {
+    if (a.home_slot && order.includes(a.home_slot) && !out[a.home_slot]) { out[a.home_slot] = a; pinned.add(a.id) }
+  }
+  const free = articles.filter((a) => !pinned.has(a.id))
+  for (const slot of order) if (!out[slot]) out[slot] = free.shift()
+  out.more = free
+  return out
+}
+
+function EditorSection({ editor }) {
+  return (
+    <section>
+      <h2 className="section-title">About the Editor in Chief</h2>
+      <article className="profile editor-profile">
+        {editor.photo_url
+          ? <div className="profile-photo" role="img" aria-label={editor.name} style={{ backgroundImage: `url("${editor.photo_url}")` }} />
+          : <div className="profile-photo placeholder" aria-hidden="true">{editor.name.charAt(0)}</div>}
+        <div className="profile-body">
+          <h3>{editor.name}</h3>
+          {editor.summary && <p className="profile-summary">{editor.summary}</p>}
+          <p><Link className="btn" to={`/authors/${editor.id}`}>Read more</Link></p>
+        </div>
+      </article>
+    </section>
+  )
+}
 
 function Featured({ article }) {
   return (
@@ -21,9 +56,11 @@ function Featured({ article }) {
 
 export default function Home() {
   const { data, error, loading } = useFetch(api.articles)
-  const [featured, ...rest] = data || []
-  const around = rest.slice(0, 4)
-  const more = rest.slice(4)
+  const { data: authors } = useFetch(api.authors)
+  const editor = authors && authors.find((a) => a.name === EDITOR_NAME)
+  const { featured, left1, left2, bottom1, bottom2, bottom3, more } = placeSlots(data || [], SLOTS)
+  const side = [[left1, 'side-1'], [left2, 'side-2']]
+  const extra = [bottom1, bottom2, bottom3].filter(Boolean)
 
   return (
     <>
@@ -43,8 +80,11 @@ export default function Home() {
       {featured && (
         <section className="showcase">
           <div className="showcase-featured"><Featured article={featured} /></div>
-          {around.map((a, i) => (
-            <div key={a.id} className={`showcase-side side-${i + 1}`}><ArticleCard article={a} compact /></div>
+          {side.map(([a, cls]) => a && (
+            <div key={a.id} className={`showcase-side ${cls}`}><ArticleCard article={a} compact /></div>
+          ))}
+          {extra.map((a) => (
+            <div key={a.id} className="showcase-extra"><ArticleCard article={a} compact /></div>
           ))}
         </section>
       )}
@@ -57,6 +97,8 @@ export default function Home() {
           </div>
         </>
       )}
+
+      {editor && <EditorSection editor={editor} />}
     </>
   )
 }
