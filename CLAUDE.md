@@ -73,4 +73,8 @@ Build the client: `cd client && npm run build`.
 
 Pages: Home (`/`), Authors (`/authors`), Articles (`/articles`, `/articles/:id`), Admin (`/admin`, password login; adds authors and articles). Admin API routes require a Bearer token from `POST /api/admin/login`.
 
+Migrations: SQL files in `server/db/migrations/` are applied automatically (in name order, once each) when the server starts. Add a new numbered file for every schema change. Also update `server/db/schema.sql` so fresh installs match.
+
+Uploads: admin image uploads are stored in `server/uploads/` (git-ignored), or in `UPLOAD_DIR` / the Railway volume mount path if set. On Railway, attach a volume or uploaded images are lost on each deploy.
+
 No tests yet.
