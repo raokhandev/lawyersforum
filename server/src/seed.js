@@ -1,18 +1,7 @@
 import { pool } from './db.js';
 
 // Inserts dummy authors and articles. Skips if there is already data.
-const authors = [
-  { name: 'Amelia Hartwell', title: 'Senior Partner', practice_area: 'Corporate Law', email: 'amelia.hartwell@example.com',
-    bio: 'Amelia advises growing companies on governance, mergers and shareholder disputes, with over twenty years of experience.' },
-  { name: 'Daniel Okafor', title: 'Partner', practice_area: 'Employment Law', email: 'daniel.okafor@example.com',
-    bio: 'Daniel represents employers and employees in workplace disputes, restructures and contract negotiations.' },
-  { name: 'Priya Raman', title: 'Associate', practice_area: 'Intellectual Property', email: 'priya.raman@example.com',
-    bio: 'Priya helps founders and creators protect trademarks, copyright and trade secrets.' },
-  { name: 'Marcus Lindqvist', title: 'Barrister', practice_area: 'Criminal Law', email: 'marcus.lindqvist@example.com',
-    bio: 'Marcus appears in trial and appellate courts and writes on evidence and procedure.' },
-  { name: 'Sofia Alvarez', title: 'Partner', practice_area: 'Family Law', email: 'sofia.alvarez@example.com',
-    bio: 'Sofia guides families through separation, custody and financial settlements with a focus on mediation.' },
-];
+import { authors } from './seedAuthors.js';
 
 const articles = [
   { a: 2, days: 1, title: 'Data Protection Basics for Small Businesses',
@@ -59,8 +48,8 @@ if (existing > 0) {
   const ids = [];
   for (const au of authors) {
     const [r] = await pool.query(
-      'INSERT INTO authors (name, title, practice_area, bio, email) VALUES (?, ?, ?, ?, ?)',
-      [au.name, au.title, au.practice_area, au.bio, au.email]
+      'INSERT INTO authors (name, title, practice_area, summary, description, email) VALUES (?, ?, ?, ?, ?, ?)',
+      [au.name, au.title, au.practice_area, au.summary, au.description, au.email]
     );
     ids.push(r.insertId);
   }

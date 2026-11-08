@@ -19,8 +19,18 @@ const str = (v, max) => String(v ?? '').trim().slice(0, max);
 // ---------- Public ----------
 app.get('/api/authors', async (_req, res, next) => {
   try {
-    const [rows] = await pool.query('SELECT * FROM authors ORDER BY name');
+    const [rows] = await pool.query(
+      'SELECT id, name, title, practice_area, summary, email, photo_url, created_at FROM authors ORDER BY name'
+    );
     res.json(rows);
+  } catch (e) { next(e); }
+});
+
+app.get('/api/authors/:id', async (req, res, next) => {
+  try {
+    const [rows] = await pool.query('SELECT * FROM authors WHERE id = ?', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Author not found.' });
+    res.json(rows[0]);
   } catch (e) { next(e); }
 });
 
@@ -55,9 +65,9 @@ app.post('/api/admin/authors', requireAdmin, async (req, res, next) => {
     const name = str(req.body.name, 150);
     if (!name) return res.status(400).json({ error: 'Name is required.' });
     const [r] = await pool.query(
-      'INSERT INTO authors (name, title, practice_area, bio, email, photo_url) VALUES (?, ?, ?, ?, ?, ?)',
+      'INSERT INTO authors (name, title, practice_area, summary, description, email, photo_url) VALUES (?, ?, ?, ?, ?, ?, ?)',
       [name, str(req.body.title, 150), str(req.body.practice_area, 150),
-       str(req.body.bio, 5000), str(req.body.email, 190), str(req.body.photo_url, 500)]
+       str(req.body.summary, 500), str(req.body.description, 10000), str(req.body.email, 190), str(req.body.photo_url, 500)]
     );
     res.status(201).json({ id: r.insertId });
   } catch (e) { next(e); }
