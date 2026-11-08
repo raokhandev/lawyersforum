@@ -72,7 +72,7 @@ const str = (v, max) => String(v ?? '').trim().slice(0, max);
 app.get('/api/authors', async (_req, res, next) => {
   try {
     const [rows] = await pool.query(
-      'SELECT id, name, title, practice_area, summary, email, photo_url, created_at FROM authors ORDER BY name'
+      'SELECT id, name, title, practice_area, summary, email, photo_url, sort_order, created_at FROM authors ORDER BY sort_order, name'
     );
     res.json(rows);
   } catch (e) { next(e); }
@@ -112,16 +112,57 @@ app.get('/api/articles/:id', async (req, res, next) => {
 // ---------- Admin ----------
 app.post('/api/admin/login', login);
 
+// Author fields shared by create and update. Returns { error } or { values } (in column order).
+function authorValues(body) {
+  const name = str(body.name, 150);
+  if (!name) return { error: 'Name is required.' };
+  return {
+    values: [name, str(body.title, 150), str(body.practice_area, 150), str(body.summary, 700),
+      str(body.description, 10000), str(body.email, 190), str(body.photo_url, 500)],
+  };
+}
+
 app.post('/api/admin/authors', requireAdmin, async (req, res, next) => {
   try {
-    const name = str(req.body.name, 150);
-    if (!name) return res.status(400).json({ error: 'Name is required.' });
+    const { error, values } = authorValues(req.body);
+    if (error) return res.status(400).json({ error });
+    // New authors go to the end of the About Us list.
+    const [[{ next: sortOrder }]] = await pool.query('SELECT COALESCE(MAX(sort_order), 0) + 1 AS next FROM authors');
     const [r] = await pool.query(
-      'INSERT INTO authors (name, title, practice_area, summary, description, email, photo_url) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [name, str(req.body.title, 150), str(req.body.practice_area, 150),
-       str(req.body.summary, 700), str(req.body.description, 10000), str(req.body.email, 190), str(req.body.photo_url, 500)]
+      'INSERT INTO authors (name, title, practice_area, summary, description, email, photo_url, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [...values, sortOrder]
     );
     res.status(201).json({ id: r.insertId });
+  } catch (e) { next(e); }
+});
+
+// Save the About Us order: body { ids: [authorId, ...] } in display order. (Defined before /:id on purpose.)
+app.put('/api/admin/authors/order', requireAdmin, async (req, res, next) => {
+  const ids = Array.isArray(req.body.ids) ? req.body.ids.map(Number) : null;
+  if (!ids || !ids.length || ids.some((n) => !Number.isInteger(n)) || new Set(ids).size !== ids.length) {
+    return res.status(400).json({ error: 'ids must be a list of unique author ids.' });
+  }
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    for (let i = 0; i < ids.length; i++) {
+      await conn.query('UPDATE authors SET sort_order = ? WHERE id = ?', [i + 1, ids[i]]);
+    }
+    await conn.commit();
+    res.json({ ok: true });
+  } catch (e) { await conn.rollback(); next(e); } finally { conn.release(); }
+});
+
+app.put('/api/admin/authors/:id', requireAdmin, async (req, res, next) => {
+  try {
+    const { error, values } = authorValues(req.body);
+    if (error) return res.status(400).json({ error });
+    const [r] = await pool.query(
+      'UPDATE authors SET name = ?, title = ?, practice_area = ?, summary = ?, description = ?, email = ?, photo_url = ? WHERE id = ?',
+      [...values, req.params.id]
+    );
+    if (!r.affectedRows) return res.status(404).json({ error: 'Author not found.' });
+    res.json({ ok: true });
   } catch (e) { next(e); }
 });
 

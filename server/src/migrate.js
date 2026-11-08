@@ -17,6 +17,7 @@ const ALREADY_APPLIED = {
   '003_author_summary_700.sql': async (col) => ((await col('authors', 'summary'))?.len ?? 0) >= 700,
   '004_article_home_slot.sql': async (col) => !!(await col('articles', 'home_slot')),
   '005_article_image.sql': async (col) => !!(await col('articles', 'image_url')),
+  '006_author_sort_order.sql': async (col) => !!(await col('authors', 'sort_order')),
 };
 
 export async function runMigrations() {
