@@ -32,7 +32,7 @@ export default function Home() {
         <p>Lawyers Forum brings together articles and analysis from our network of authors.</p>
         <div className="hero-actions">
           <Link className="btn" to="/articles">Read articles</Link>
-          <Link className="btn btn-outline" to="/authors">Meet the authors</Link>
+          <Link className="btn btn-outline" to="/about">About Us</Link>
         </div>
       </section>
 

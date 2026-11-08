@@ -25,7 +25,8 @@ function Login({ onLogin }) {
   )
 }
 
-const emptyAuthor = { name: '', title: '', practice_area: '', email: '', photo_url: '', bio: '' }
+const SUMMARY_MAX = 500
+const emptyAuthor = { name: '', title: '', practice_area: '', email: '', photo_url: '', summary: '', description: '' }
 const emptyArticle = { title: '', summary: '', author_id: '', content: '' }
 
 function Form({ initial, onSubmit, children, submitLabel }) {
@@ -87,7 +88,14 @@ function Dashboard({ onLogout, onAuthError }) {
                 <label>Practice area<input value={v.practice_area} onChange={set('practice_area')} /></label>
                 <label>Email<input type="email" value={v.email} onChange={set('email')} /></label>
                 <label>Photo URL<input value={v.photo_url} onChange={set('photo_url')} placeholder="https://…" /></label>
-                <label>Bio<textarea rows="4" value={v.bio} onChange={set('bio')} /></label>
+                <label>Summary (shown on the About Us page)
+                  <textarea rows="3" maxLength={SUMMARY_MAX} value={v.summary} onChange={set('summary')} />
+                  <small>{v.summary.length}/{SUMMARY_MAX} characters</small>
+                </label>
+                <label>Description (shown on the author's own page)
+                  <textarea rows="8" value={v.description} onChange={set('description')} />
+                  <small>Separate paragraphs with a blank line.</small>
+                </label>
               </>
             )}
           </Form>

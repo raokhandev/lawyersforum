@@ -20,6 +20,7 @@ async function request(path, options = {}) {
 
 export const api = {
   authors: () => request('/api/authors'),
+  author: (id) => request(`/api/authors/${id}`),
   articles: () => request('/api/articles'),
   article: (id) => request(`/api/articles/${id}`),
   login: (password) => request('/api/admin/login', { method: 'POST', body: JSON.stringify({ password }) }),
