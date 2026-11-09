@@ -3,6 +3,7 @@ import { Link, NavLink, Navigate, Route, Routes, useParams } from 'react-router-
 import { api, getToken, setToken } from '../api.js'
 import useFetch from '../useFetch.js'
 import ImageUpload from '../components/ImageUpload.jsx'
+import RichTextEditor from '../components/RichTextEditor.jsx'
 import { EDITOR_NAME } from '../config.js'
 
 function Login({ onLogin }) {
@@ -32,7 +33,9 @@ function Login({ onLogin }) {
 
 const SUMMARY_MAX = 700
 const emptyAuthor = { name: '', title: '', practice_area: '', email: '', photo_url: '', summary: '', description: '' }
-const emptyArticle = { title: '', summary: '', image_url: '', author_id: '', content: '' }
+const today = () => new Date().toLocaleDateString('en-CA') // YYYY-MM-DD
+const emptyArticle = () => ({ title: '', author_id: '', published_at: today(), image_url: '', tile_image_url: '', summary: '', content: '' })
+const hasText = (html) => html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim() !== ''
 
 // Home page positions shown on the Organise Articles page (the Editor in Chief section sits separately below the articles).
 const SLOT_LABELS = {
@@ -44,7 +47,7 @@ const SLOT_LABELS = {
   bottom3: 'Bottom row, 3rd',
 }
 
-function Form({ initial, onSubmit, children, submitLabel, keepOnSave = false }) {
+function Form({ initial, onSubmit, children, submitLabel, keepOnSave = false, className = '' }) {
   const [values, setValues] = useState(initial)
   const [msg, setMsg] = useState({ type: '', text: '' })
   const set = (k) => (e) => setValues({ ...values, [k]: e.target.value })
@@ -58,7 +61,7 @@ function Form({ initial, onSubmit, children, submitLabel, keepOnSave = false }) 
     } catch (err) { setMsg({ type: 'error', text: err.message }) }
   }
   return (
-    <form className="form" onSubmit={submit}>
+    <form className={`form ${className}`} onSubmit={submit}>
       {children(values, set, setValue)}
       {msg.text && <p className={msg.type === 'ok' ? 'success' : 'error'}>{msg.text}</p>}
       <button className="btn">{submitLabel}</button>
@@ -235,24 +238,53 @@ function OrganiseMembers({ onAuthError }) {
 
 function AddArticle({ onAuthError }) {
   const { authors, guard } = useAdminData(onAuthError)
+  const save = guard(async (v) => {
+    if (!v.image_url) throw new Error('Please choose the article image (top of the article).')
+    if (!v.tile_image_url) throw new Error('Please choose the article tile image (background of the article button).')
+    if (!hasText(v.content)) throw new Error('Please write the article.')
+    await api.addArticle(v)
+  })
   return (
     <>
       <h1>Add article</h1>
-      <Form initial={emptyArticle} onSubmit={guard(api.addArticle)} submitLabel="Publish article">
+      <Form className="article-form" initial={emptyArticle()} onSubmit={save} submitLabel="Save Article">
         {(v, set, setValue) => (
           <>
-            <label>Title *<input value={v.title} onChange={set('title')} required /></label>
-            <label>Author
-              <select value={v.author_id} onChange={set('author_id')}>
-                <option value="">— None —</option>
-                {authors && authors.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-              </select>
+            <label>Title <span className="req">*</span>
+              <input value={v.title} onChange={set('title')} maxLength={255} required />
             </label>
-            <ImageUpload kind="article" label="Article image" value={v.image_url} onChange={(url) => setValue('image_url', url)} onAuthError={onAuthError} />
-            <label>Summary<input value={v.summary} onChange={set('summary')} maxLength={500} /></label>
-            <label>Content *<textarea rows="12" value={v.content} onChange={set('content')} required />
-              <small>Separate paragraphs with a blank line.</small>
+            <div className="field-row">
+              <label>Author <span className="req">*</span>
+                <select value={v.author_id} onChange={set('author_id')} required>
+                  <option value="">Please select</option>
+                  {authors && authors.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+                </select>
+              </label>
+              <label>Publication date <span className="req">*</span>
+                <input type="date" value={v.published_at} onChange={set('published_at')} required />
+              </label>
+            </div>
+            <ImageUpload
+              kind="article" compact required label="Article image (top of the article and link preview)"
+              value={v.image_url} onChange={(url) => setValue('image_url', url)} onAuthError={onAuthError}
+              helpText="Shown at the top of the article. It is also the picture that appears when the article link is shared on social media or in messages (the SEO image). JPEG, PNG or WebP, up to 5MB, at least 1200 × 630 px (1600 × 900 recommended)."
+            />
+            <ImageUpload
+              kind="tile" compact required label="Article tile image (background of the article button)"
+              value={v.tile_image_url} onChange={(url) => setValue('tile_image_url', url)} onAuthError={onAuthError}
+              helpText="Used as the background of this article's button on the home page and the Articles page, under a dark overlay. JPEG, PNG or WebP, up to 5MB, at least 800 × 450 px (1200 × 675 recommended)."
+            />
+            <label>Summary
+              <textarea rows="4" maxLength={500} value={v.summary} onChange={set('summary')} />
+              <small>One or two sentences, used where the article is listed.</small>
             </label>
+            <div className="field">
+              <span className="field-label">Article <span className="req">*</span></span>
+              <RichTextEditor
+                value={v.content} onChange={(html) => setValue('content', html)}
+                helpText="Write the article here. Select some words and use the buttons above to make a subheading, bold them, or turn them into a link."
+              />
+            </div>
           </>
         )}
       </Form>

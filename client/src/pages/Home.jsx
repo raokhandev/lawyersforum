@@ -41,11 +41,12 @@ function EditorSection({ editor }) {
 }
 
 function Featured({ article }) {
+  const tileImage = article.tile_image_url || article.image_url
+  const style = tileImage ? { backgroundImage: `url("${tileImage}")` } : undefined
   return (
-    <article className="featured">
+    <article className="featured" style={style}>
       <p className="kicker">Featured</p>
       <h2><Link to={`/articles/${article.id}`}>{article.title}</Link></h2>
-      {article.summary && <p className="featured-summary">{article.summary}</p>}
       <p className="featured-meta">
         {article.author_name ? `By ${article.author_name} · ` : ''}{fmt(article.created_at)}
       </p>
