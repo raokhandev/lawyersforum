@@ -2,6 +2,26 @@ import { useEffect } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { api } from '../api.js'
 import useFetch from '../useFetch.js'
+import AuthorCard from '../components/AuthorCard.jsx'
+import ArticleCarousel from '../components/ArticleCarousel.jsx'
+
+// Under every article: the author's card, then the author's other articles in a scrolling row.
+function AfterArticle({ authorId, currentId }) {
+  const { data: author } = useFetch(() => api.author(authorId), [authorId])
+  const { data: articles } = useFetch(api.articles, [])
+  if (!author) return null
+  const others = (articles || []).filter((a) => a.author_id === authorId && a.id !== currentId)
+  return (
+    <div className="after-article">
+      <section aria-label="About the author"><AuthorCard author={author} /></section>
+      {others.length > 0 && (
+        <section className="more-by-author">
+          <ArticleCarousel articles={others} label={`More articles by ${author.name}`} />
+        </section>
+      )}
+    </div>
+  )
+}
 
 export default function ArticleDetail() {
   const { id } = useParams()
@@ -30,6 +50,7 @@ export default function ArticleDetail() {
             : data.content.split(/\n{2,}/).map((p, i) => <p key={i}>{p}</p>)}
         </article>
       )}
+      {data && data.author_id && <AfterArticle authorId={data.author_id} currentId={data.id} />}
     </>
   )
 }

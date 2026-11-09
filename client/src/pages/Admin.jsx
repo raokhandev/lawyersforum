@@ -4,6 +4,7 @@ import { api, getToken, setToken } from '../api.js'
 import useFetch from '../useFetch.js'
 import ImageUpload from '../components/ImageUpload.jsx'
 import RichTextEditor from '../components/RichTextEditor.jsx'
+import DatePicker from '../components/DatePicker.jsx'
 import { EDITOR_NAME } from '../config.js'
 
 function Login({ onLogin }) {
@@ -238,6 +239,7 @@ function OrganiseMembers({ onAuthError }) {
 
 // Checks the article before it is sent (the server checks again).
 function validateArticle(v) {
+  if (!v.published_at) throw new Error('Please choose a publication date.')
   if (!v.image_url) throw new Error('Please choose the article image (top of the article).')
   if (!v.tile_image_url) throw new Error('Please choose the article tile image (background of the article button).')
   if (!hasText(v.content)) throw new Error('Please write the article.')
@@ -263,9 +265,10 @@ function ArticleFields({ v, set, setValue, authors, onAuthError }) {
             {authors && authors.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
           </select>
         </label>
-        <label>Publication date <span className="req">*</span>
-          <input type="date" value={v.published_at} onChange={set('published_at')} required />
-        </label>
+        <div className="field">
+          <span className="field-label" id="pubdate-label">Publication date <span className="req">*</span></span>
+          <DatePicker labelledBy="pubdate-label" value={v.published_at} onChange={(d) => setValue('published_at', d)} />
+        </div>
       </div>
       <ImageUpload
         kind="article" compact required label="Article image (top of the article and link preview)"
