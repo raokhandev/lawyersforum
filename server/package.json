@@ -16,6 +16,7 @@
     "image-size": "^2.1.0",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.5.0",
-    "mysql2": "^3.24.6"
+    "mysql2": "^3.24.6",
+    "sanitize-html": "^2.18.1"
   }
 }

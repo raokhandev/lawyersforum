@@ -18,6 +18,7 @@ const ALREADY_APPLIED = {
   '004_article_home_slot.sql': async (col) => !!(await col('articles', 'home_slot')),
   '005_article_image.sql': async (col) => !!(await col('articles', 'image_url')),
   '006_author_sort_order.sql': async (col) => !!(await col('authors', 'sort_order')),
+  '007_article_tile_image.sql': async (col) => !!(await col('articles', 'tile_image_url')),
 };
 
 export async function runMigrations() {

@@ -10,6 +10,7 @@ import multer from 'multer';
 import { imageSize } from 'image-size';
 import { login, requireAdmin } from './auth.js';
 import { runMigrations } from './migrate.js';
+import { cleanHtml, looksLikeHtml, isEmptyHtml } from './html.js';
 
 // Built React site (created by `npm run build` at the repo root).
 const clientDist = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../client/dist');
@@ -17,6 +18,7 @@ const clientDist = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '.
 await runMigrations();
 
 const app = express();
+app.set('trust proxy', 1); // behind Railway's proxy: use the real https host for absolute URLs
 app.use(cors());
 app.use(express.json({ limit: '1mb' }));
 
@@ -31,24 +33,32 @@ const uploadDir = path.resolve(
 fs.mkdirSync(uploadDir, { recursive: true });
 app.use('/api/uploads', express.static(uploadDir, { maxAge: 0, etag: true }));
 
+const MB = 1024 * 1024;
 export const IMAGE_RULES = {
-  maxBytes: 2 * 1024 * 1024,
   types: { jpg: 'jpg', jpeg: 'jpg', png: 'png', webp: 'webp' },
-  author: { minW: 400, minH: 500, maxW: 4000, maxH: 4000 },
-  article: { minW: 800, minH: 450, maxW: 4000, maxH: 4000 },
+  author: { maxMB: 2, minW: 400, minH: 500, maxW: 4000, maxH: 4000 },
+  // Top-of-article image, also the link-preview image (so at least 1200 x 630).
+  article: { maxMB: 5, minW: 1200, minH: 630, maxW: 4000, maxH: 4000 },
+  // Background of the article tile.
+  tile: { maxMB: 5, minW: 800, minH: 450, maxW: 4000, maxH: 4000 },
 };
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: IMAGE_RULES.maxBytes, files: 1 } });
+// Multer's hard cap is the largest allowed size; each kind's own limit is checked below.
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * MB, files: 1 } });
 
 app.post('/api/admin/upload', requireAdmin, (req, res, next) => {
   upload.single('file')(req, res, async (err) => {
     try {
+      const rule = IMAGE_RULES[req.query.kind];
       if (err) {
-        const msg = err.code === 'LIMIT_FILE_SIZE' ? 'File is too large. The maximum size is 2 MB.' : 'Upload failed.';
+        const msg = err.code === 'LIMIT_FILE_SIZE'
+          ? `File is too large. The maximum size is ${rule ? rule.maxMB : 5} MB.` : 'Upload failed.';
         return res.status(400).json({ error: msg });
       }
-      const rule = IMAGE_RULES[req.query.kind];
       if (!rule) return res.status(400).json({ error: 'Unknown image kind.' });
       if (!req.file) return res.status(400).json({ error: 'No file received.' });
+      if (req.file.size > rule.maxMB * MB) {
+        return res.status(400).json({ error: `File is too large. The maximum size is ${rule.maxMB} MB.` });
+      }
       let info;
       try { info = imageSize(req.file.buffer); } catch { info = null; }
       const ext = info && IMAGE_RULES.types[info.type];
@@ -89,7 +99,7 @@ app.get('/api/authors/:id', async (req, res, next) => {
 app.get('/api/articles', async (_req, res, next) => {
   try {
     const [rows] = await pool.query(
-      `SELECT a.id, a.title, a.summary, a.image_url, a.created_at, a.author_id, a.home_slot, l.name AS author_name
+      `SELECT a.id, a.title, a.summary, a.image_url, a.tile_image_url, a.created_at, a.author_id, a.home_slot, l.name AS author_name
        FROM articles a LEFT JOIN authors l ON l.id = a.author_id
        ORDER BY a.created_at DESC, a.id DESC`
     );
@@ -105,7 +115,9 @@ app.get('/api/articles/:id', async (req, res, next) => {
       [req.params.id]
     );
     if (!rows.length) return res.status(404).json({ error: 'Article not found.' });
-    res.json(rows[0]);
+    const article = rows[0];
+    if (looksLikeHtml(article.content)) article.content = cleanHtml(article.content);
+    res.json(article);
   } catch (e) { next(e); }
 });
 
@@ -169,12 +181,30 @@ app.put('/api/admin/authors/:id', requireAdmin, async (req, res, next) => {
 app.post('/api/admin/articles', requireAdmin, async (req, res, next) => {
   try {
     const title = str(req.body.title, 255);
-    const content = String(req.body.content ?? '').trim();
-    if (!title || !content) return res.status(400).json({ error: 'Title and content are required.' });
-    const authorId = req.body.author_id ? Number(req.body.author_id) : null;
+    if (!title) return res.status(400).json({ error: 'Please enter a title.' });
+
+    const authorId = Number(req.body.author_id);
+    if (!Number.isInteger(authorId) || authorId < 1) return res.status(400).json({ error: 'Please choose an author.' });
+    const [[author]] = await pool.query('SELECT id FROM authors WHERE id = ?', [authorId]);
+    if (!author) return res.status(400).json({ error: 'That author no longer exists.' });
+
+    const date = String(req.body.published_at || '');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(Date.parse(date))) {
+      return res.status(400).json({ error: 'Please choose a publication date.' });
+    }
+
+    const imageUrl = str(req.body.image_url, 500);
+    if (!imageUrl) return res.status(400).json({ error: 'Please choose the article image (top of the article).' });
+    const tileImageUrl = str(req.body.tile_image_url, 500);
+    if (!tileImageUrl) return res.status(400).json({ error: 'Please choose the article tile image (background of the article button).' });
+
+    // The article is HTML from the button editor; keep only the safe tags.
+    const content = cleanHtml(req.body.content);
+    if (isEmptyHtml(content)) return res.status(400).json({ error: 'Please write the article.' });
+
     const [r] = await pool.query(
-      'INSERT INTO articles (title, summary, image_url, content, author_id) VALUES (?, ?, ?, ?, ?)',
-      [title, str(req.body.summary, 500), str(req.body.image_url, 500), content, Number.isInteger(authorId) ? authorId : null]
+      'INSERT INTO articles (title, summary, image_url, tile_image_url, content, author_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [title, str(req.body.summary, 500), imageUrl, tileImageUrl, content, authorId, `${date} 12:00:00`]
     );
     res.status(201).json({ id: r.insertId });
   } catch (e) { next(e); }
@@ -217,6 +247,30 @@ app.delete('/api/admin/articles/:id', requireAdmin, async (req, res, next) => {
 
 // Serve the React site in production, with client-side routes falling back to index.html.
 if (fs.existsSync(path.join(clientDist, 'index.html'))) {
+  // Article pages get their own title and link-preview tags (Open Graph / Twitter). The preview image is the article's
+  // top image. Social sites read these tags from the HTML, so they are added here on the server.
+  const escapeHtml = (v) => String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  app.get('/articles/:id', async (req, res, next) => {
+    try {
+      let html = await fs.promises.readFile(path.join(clientDist, 'index.html'), 'utf8');
+      const [rows] = await pool.query('SELECT title, summary, image_url FROM articles WHERE id = ?', [req.params.id]);
+      if (rows.length) {
+        const a = rows[0];
+        const origin = (process.env.SITE_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
+        const absolute = (u) => (u ? (/^https?:\/\//i.test(u) ? u : origin + u) : '');
+        const title = `${a.title} | Lawyers Forum`;
+        const description = a.summary || 'Legal insight from the people who practise it.';
+        const tags = [
+          ['og:type', 'article'], ['og:site_name', 'Lawyers Forum'], ['og:title', a.title], ['og:description', description],
+          ['og:url', `${origin}/articles/${req.params.id}`], ['og:image', absolute(a.image_url)],
+        ].filter(([, v]) => v).map(([k, v]) => `<meta property="${k}" content="${escapeHtml(v)}" />`);
+        tags.push(`<meta name="twitter:card" content="${a.image_url ? 'summary_large_image' : 'summary'}" />`);
+        tags.push(`<meta name="description" content="${escapeHtml(description)}" />`);
+        html = html.replace(/<title>[^<]*<\/title>/, `<title>${escapeHtml(title)}</title>`).replace('</head>', `    ${tags.join('\n    ')}\n  </head>`);
+      }
+      res.type('html').send(html);
+    } catch (e) { next(e); }
+  });
   app.use(express.static(clientDist));
   app.get(/^\/(?!api\/).*/, (_req, res) => res.sendFile(path.join(clientDist, 'index.html')));
 }

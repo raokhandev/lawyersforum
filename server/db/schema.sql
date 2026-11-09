@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS articles (
   title VARCHAR(255) NOT NULL,
   summary VARCHAR(500) NOT NULL DEFAULT '',
   image_url VARCHAR(500) NOT NULL DEFAULT '',
+  tile_image_url VARCHAR(500) NOT NULL DEFAULT '',
   content MEDIUMTEXT NOT NULL,
   author_id INT NULL,
   home_slot VARCHAR(20) NULL,
