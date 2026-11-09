@@ -69,7 +69,7 @@ nav a:hover, nav a.active { border-bottom-color: var(--color-teal); }
 .avatar { width: 88px; height: 88px; border-radius: 50%; object-fit: cover; display: block; margin-bottom: 12px; }
 .avatar.placeholder { background: var(--color-navy); color: #fff; font-family: var(--font-serif); font-size: 2rem; display: flex; align-items: center; justify-content: center; }
 
-.article { max-width: 900px; }
+.article { max-width: none; }
 .article p { font-size: 1.05rem; }
 
 .admin-head { display: flex; justify-content: space-between; align-items: center; }
@@ -214,7 +214,7 @@ nav a:hover, nav a.active { border-bottom-color: var(--color-teal); }
 .btn-link { background: none; border: 0; color: var(--color-danger); font: inherit; font-weight: 600; cursor: pointer; margin-left: 12px; text-decoration: underline; }
 .card-image { display: block; width: calc(100% + 40px); margin: -20px -20px 14px; aspect-ratio: 16 / 9; object-fit: cover; }
 .card { overflow: hidden; }
-.article-image { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 6px; margin-bottom: 20px; }
+.article-image { width: 100%; aspect-ratio: 21 / 9; object-fit: cover; border-radius: 6px; margin-bottom: 20px; }
 
 /* Light / dark mode toggle (site header) */
 .theme-toggle { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; padding: 0; background: transparent; color: var(--color-heading); border: 1px solid var(--color-border); border-radius: 50%; cursor: pointer; }
