@@ -48,5 +48,6 @@ export const api = {
   reorderAuthors: (ids) => request('/api/admin/authors/order', { method: 'PUT', body: JSON.stringify({ ids }) }),
   deleteAuthor: (id) => request(`/api/admin/authors/${id}`, { method: 'DELETE' }),
   setArticleSlot: (id, slot) => request(`/api/admin/articles/${id}/slot`, { method: 'PUT', body: JSON.stringify({ slot }) }),
+  updateArticle: (id, body) => request(`/api/admin/articles/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   deleteArticle: (id) => request(`/api/admin/articles/${id}`, { method: 'DELETE' }),
 }

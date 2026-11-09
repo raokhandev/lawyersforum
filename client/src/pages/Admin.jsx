@@ -236,58 +236,109 @@ function OrganiseMembers({ onAuthError }) {
   )
 }
 
+// Checks the article before it is sent (the server checks again).
+function validateArticle(v) {
+  if (!v.image_url) throw new Error('Please choose the article image (top of the article).')
+  if (!v.tile_image_url) throw new Error('Please choose the article tile image (background of the article button).')
+  if (!hasText(v.content)) throw new Error('Please write the article.')
+}
+
+// Older articles were plain text with blank lines between paragraphs; show them as paragraphs in the editor.
+const escapeHtml = (t) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+const toEditorHtml = (content) => (/<\/?[a-z][\s\S]*?>/i.test(content)
+  ? content
+  : content.split(/\n{2,}/).filter(Boolean).map((p) => `<p>${escapeHtml(p)}</p>`).join(''))
+
+// The article form fields, shared by the Add and Edit pages.
+function ArticleFields({ v, set, setValue, authors, onAuthError }) {
+  return (
+    <>
+      <label>Title <span className="req">*</span>
+        <input value={v.title} onChange={set('title')} maxLength={255} required />
+      </label>
+      <div className="field-row">
+        <label>Author <span className="req">*</span>
+          <select value={v.author_id} onChange={set('author_id')} required>
+            <option value="">Please select</option>
+            {authors && authors.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+          </select>
+        </label>
+        <label>Publication date <span className="req">*</span>
+          <input type="date" value={v.published_at} onChange={set('published_at')} required />
+        </label>
+      </div>
+      <ImageUpload
+        kind="article" compact required label="Article image (top of the article and link preview)"
+        value={v.image_url} onChange={(url) => setValue('image_url', url)} onAuthError={onAuthError}
+        helpText="Shown at the top of the article. It is also the picture that appears when the article link is shared on social media or in messages (the SEO image). JPEG, PNG or WebP, up to 5MB, at least 1200 × 630 px (1600 × 900 recommended)."
+      />
+      <ImageUpload
+        kind="tile" compact required label="Article tile image (background of the article button)"
+        value={v.tile_image_url} onChange={(url) => setValue('tile_image_url', url)} onAuthError={onAuthError}
+        helpText="Used as the background of this article's button on the home page and the Articles page, under a dark overlay. JPEG, PNG or WebP, up to 5MB, at least 800 × 450 px (1200 × 675 recommended)."
+      />
+      <label>Summary
+        <textarea rows="4" maxLength={500} value={v.summary} onChange={set('summary')} />
+        <small>One or two sentences, used where the article is listed.</small>
+      </label>
+      <div className="field">
+        <span className="field-label">Article <span className="req">*</span></span>
+        <RichTextEditor
+          value={v.content} onChange={(html) => setValue('content', html)}
+          helpText="Write the article here. Select some words and use the buttons above to make a subheading, bold them, or turn them into a link."
+        />
+      </div>
+    </>
+  )
+}
+
 function AddArticle({ onAuthError }) {
   const { authors, guard } = useAdminData(onAuthError)
   const save = guard(async (v) => {
-    if (!v.image_url) throw new Error('Please choose the article image (top of the article).')
-    if (!v.tile_image_url) throw new Error('Please choose the article tile image (background of the article button).')
-    if (!hasText(v.content)) throw new Error('Please write the article.')
+    validateArticle(v)
     await api.addArticle(v)
   })
   return (
     <>
       <h1>Add article</h1>
       <Form className="article-form" initial={emptyArticle()} onSubmit={save} submitLabel="Save Article">
-        {(v, set, setValue) => (
-          <>
-            <label>Title <span className="req">*</span>
-              <input value={v.title} onChange={set('title')} maxLength={255} required />
-            </label>
-            <div className="field-row">
-              <label>Author <span className="req">*</span>
-                <select value={v.author_id} onChange={set('author_id')} required>
-                  <option value="">Please select</option>
-                  {authors && authors.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-                </select>
-              </label>
-              <label>Publication date <span className="req">*</span>
-                <input type="date" value={v.published_at} onChange={set('published_at')} required />
-              </label>
-            </div>
-            <ImageUpload
-              kind="article" compact required label="Article image (top of the article and link preview)"
-              value={v.image_url} onChange={(url) => setValue('image_url', url)} onAuthError={onAuthError}
-              helpText="Shown at the top of the article. It is also the picture that appears when the article link is shared on social media or in messages (the SEO image). JPEG, PNG or WebP, up to 5MB, at least 1200 × 630 px (1600 × 900 recommended)."
-            />
-            <ImageUpload
-              kind="tile" compact required label="Article tile image (background of the article button)"
-              value={v.tile_image_url} onChange={(url) => setValue('tile_image_url', url)} onAuthError={onAuthError}
-              helpText="Used as the background of this article's button on the home page and the Articles page, under a dark overlay. JPEG, PNG or WebP, up to 5MB, at least 800 × 450 px (1200 × 675 recommended)."
-            />
-            <label>Summary
-              <textarea rows="4" maxLength={500} value={v.summary} onChange={set('summary')} />
-              <small>One or two sentences, used where the article is listed.</small>
-            </label>
-            <div className="field">
-              <span className="field-label">Article <span className="req">*</span></span>
-              <RichTextEditor
-                value={v.content} onChange={(html) => setValue('content', html)}
-                helpText="Write the article here. Select some words and use the buttons above to make a subheading, bold them, or turn them into a link."
-              />
-            </div>
-          </>
-        )}
+        {(v, set, setValue) => <ArticleFields v={v} set={set} setValue={setValue} authors={authors} onAuthError={onAuthError} />}
       </Form>
+    </>
+  )
+}
+
+function EditArticle({ onAuthError }) {
+  const { id } = useParams()
+  const { authors } = useAdminData(onAuthError)
+  const { data, error, loading } = useFetch(() => api.article(id), [id])
+  const save = async (v) => {
+    try {
+      validateArticle(v)
+      await api.updateArticle(id, v)
+    } catch (err) { if (err.status === 401) onAuthError(); throw err }
+  }
+  const initial = data && {
+    title: data.title || '',
+    author_id: data.author_id ? String(data.author_id) : '',
+    published_at: data.published_date || today(),
+    image_url: data.image_url || '',
+    // Articles from before there were two images only have one; start the tile image from it.
+    tile_image_url: data.tile_image_url || data.image_url || '',
+    summary: data.summary || '',
+    content: toEditorHtml(data.content || ''),
+  }
+  return (
+    <>
+      <p><Link to="/admin/manage">← Back to Manage Content</Link></p>
+      <h1>Edit article</h1>
+      {loading && <p>Loading…</p>}
+      {error && <p className="error">{error}</p>}
+      {initial && (
+        <Form key={id} className="article-form" initial={initial} onSubmit={save} submitLabel="Save changes" keepOnSave>
+          {(v, set, setValue) => <ArticleFields v={v} set={set} setValue={setValue} authors={authors} onAuthError={onAuthError} />}
+        </Form>
+      )}
     </>
   )
 }
@@ -326,10 +377,13 @@ function ManageContent({ onAuthError }) {
             {articles && articles.map((a) => (
               <li key={a.id}>
                 <span>{a.title}{a.author_name ? <small> · {a.author_name}</small> : null}</span>
-                <button className="btn-danger" onClick={() => remove(
-                  () => api.deleteArticle(a.id),
-                  `Delete article "${a.title}"? This cannot be undone.`
-                )}>Delete</button>
+                <span className="row-actions">
+                  <Link className="btn-edit" to={`/admin/edit-article/${a.id}`}>Edit</Link>
+                  <button className="btn-danger" onClick={() => remove(
+                    () => api.deleteArticle(a.id),
+                    `Delete article "${a.title}"? This cannot be undone.`
+                  )}>Delete</button>
+                </span>
               </li>
             ))}
             {articles && articles.length === 0 && <li>No articles.</li>}
@@ -408,6 +462,7 @@ function AdminShell({ onLogout }) {
           <Route path="organise" element={<OrganiseArticles onAuthError={onLogout} />} />
           <Route path="organise-members" element={<OrganiseMembers onAuthError={onLogout} />} />
           <Route path="edit-author/:id" element={<EditAuthor onAuthError={onLogout} />} />
+          <Route path="edit-article/:id" element={<EditArticle onAuthError={onLogout} />} />
           <Route path="*" element={<Navigate to="add-author" replace />} />
         </Routes>
       </section>

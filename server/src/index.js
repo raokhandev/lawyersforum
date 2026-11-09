@@ -110,7 +110,7 @@ app.get('/api/articles', async (_req, res, next) => {
 app.get('/api/articles/:id', async (req, res, next) => {
   try {
     const [rows] = await pool.query(
-      `SELECT a.*, l.name AS author_name
+      `SELECT a.*, DATE_FORMAT(a.created_at, '%Y-%m-%d') AS published_date, l.name AS author_name
        FROM articles a LEFT JOIN authors l ON l.id = a.author_id WHERE a.id = ?`,
       [req.params.id]
     );
@@ -178,35 +178,56 @@ app.put('/api/admin/authors/:id', requireAdmin, async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// Checks the article form fields shared by create and update. Returns { error } or { values }.
+async function articleValues(body) {
+  const title = str(body.title, 255);
+  if (!title) return { error: 'Please enter a title.' };
+
+  const authorId = Number(body.author_id);
+  if (!Number.isInteger(authorId) || authorId < 1) return { error: 'Please choose an author.' };
+  const [[author]] = await pool.query('SELECT id FROM authors WHERE id = ?', [authorId]);
+  if (!author) return { error: 'That author no longer exists.' };
+
+  const date = String(body.published_at || '');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(Date.parse(date))) return { error: 'Please choose a publication date.' };
+
+  const imageUrl = str(body.image_url, 500);
+  if (!imageUrl) return { error: 'Please choose the article image (top of the article).' };
+  const tileImageUrl = str(body.tile_image_url, 500);
+  if (!tileImageUrl) return { error: 'Please choose the article tile image (background of the article button).' };
+
+  // The article is HTML from the button editor; keep only the safe tags.
+  const content = cleanHtml(body.content);
+  if (isEmptyHtml(content)) return { error: 'Please write the article.' };
+
+  return { values: { title, summary: str(body.summary, 500), imageUrl, tileImageUrl, content, authorId, date } };
+}
+
 app.post('/api/admin/articles', requireAdmin, async (req, res, next) => {
   try {
-    const title = str(req.body.title, 255);
-    if (!title) return res.status(400).json({ error: 'Please enter a title.' });
-
-    const authorId = Number(req.body.author_id);
-    if (!Number.isInteger(authorId) || authorId < 1) return res.status(400).json({ error: 'Please choose an author.' });
-    const [[author]] = await pool.query('SELECT id FROM authors WHERE id = ?', [authorId]);
-    if (!author) return res.status(400).json({ error: 'That author no longer exists.' });
-
-    const date = String(req.body.published_at || '');
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(Date.parse(date))) {
-      return res.status(400).json({ error: 'Please choose a publication date.' });
-    }
-
-    const imageUrl = str(req.body.image_url, 500);
-    if (!imageUrl) return res.status(400).json({ error: 'Please choose the article image (top of the article).' });
-    const tileImageUrl = str(req.body.tile_image_url, 500);
-    if (!tileImageUrl) return res.status(400).json({ error: 'Please choose the article tile image (background of the article button).' });
-
-    // The article is HTML from the button editor; keep only the safe tags.
-    const content = cleanHtml(req.body.content);
-    if (isEmptyHtml(content)) return res.status(400).json({ error: 'Please write the article.' });
-
+    const { error, values: v } = await articleValues(req.body);
+    if (error) return res.status(400).json({ error });
     const [r] = await pool.query(
       'INSERT INTO articles (title, summary, image_url, tile_image_url, content, author_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [title, str(req.body.summary, 500), imageUrl, tileImageUrl, content, authorId, `${date} 12:00:00`]
+      [v.title, v.summary, v.imageUrl, v.tileImageUrl, v.content, v.authorId, `${v.date} 12:00:00`]
     );
     res.status(201).json({ id: r.insertId });
+  } catch (e) { next(e); }
+});
+
+app.put('/api/admin/articles/:id', requireAdmin, async (req, res, next) => {
+  try {
+    const { error, values: v } = await articleValues(req.body);
+    if (error) return res.status(400).json({ error });
+    // The publication time is only changed if the date was changed (so saving a fix keeps the article's position).
+    const [r] = await pool.query(
+      `UPDATE articles SET title = ?, summary = ?, image_url = ?, tile_image_url = ?, content = ?, author_id = ?,
+         created_at = IF(DATE(created_at) = ?, created_at, CONCAT(?, ' 12:00:00'))
+       WHERE id = ?`,
+      [v.title, v.summary, v.imageUrl, v.tileImageUrl, v.content, v.authorId, v.date, v.date, req.params.id]
+    );
+    if (!r.affectedRows) return res.status(404).json({ error: 'Article not found.' });
+    res.json({ ok: true });
   } catch (e) { next(e); }
 });
 
