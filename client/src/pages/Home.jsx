@@ -25,7 +25,7 @@ function placeSlots(articles, order) {
 function EditorSection({ editor }) {
   return (
     <section>
-      <h2 className="section-title">About the Editor in Chief</h2>
+      <h2 className="section-title">About the Editor</h2>
       <article className="profile editor-profile">
         {editor.photo_url
           ? <div className="profile-photo" role="img" aria-label={editor.name} style={{ backgroundImage: `url("${editor.photo_url}")` }} />
