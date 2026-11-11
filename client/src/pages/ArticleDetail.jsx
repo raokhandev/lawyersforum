@@ -4,6 +4,7 @@ import { api } from '../api.js'
 import useFetch from '../useFetch.js'
 import AuthorCard from '../components/AuthorCard.jsx'
 import ArticleCarousel from '../components/ArticleCarousel.jsx'
+import { GROUPS } from '../groups.js'
 
 // Under every article: the author's card, then the author's other articles in a scrolling row.
 function AfterArticle({ authorId, currentId }) {
@@ -42,6 +43,9 @@ export default function ArticleDetail() {
           <p className="meta">
             {data.author_name ? `By ${data.author_name} · ` : ''}
             {new Date(data.created_at).toLocaleDateString()}
+            {GROUPS.flatMap((g) => (data[g.out] || []).map((a) => (
+              <span key={`${g.key}-${a.id}`}> · <Link to={`${g.basePath}/${a.slug}`}>{a.name}</Link></span>
+            )))}
           </p>
           {/<\/?[a-z][\s\S]*?>/i.test(data.content)
             // Written with the admin editor: HTML that the server has already cleaned of anything unsafe.

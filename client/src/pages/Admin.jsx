@@ -6,6 +6,7 @@ import ImageUpload from '../components/ImageUpload.jsx'
 import RichTextEditor from '../components/RichTextEditor.jsx'
 import DatePicker from '../components/DatePicker.jsx'
 import { EDITOR_NAME } from '../config.js'
+import { GROUPS } from '../groups.js'
 
 function Login({ onLogin }) {
   const [password, setPassword] = useState('')
@@ -35,7 +36,7 @@ function Login({ onLogin }) {
 const SUMMARY_MAX = 700
 const emptyAuthor = { name: '', title: '', practice_area: '', email: '', photo_url: '', summary: '', description: '' }
 const today = () => new Date().toLocaleDateString('en-CA') // YYYY-MM-DD
-const emptyArticle = () => ({ title: '', author_id: '', published_at: today(), image_url: '', tile_image_url: '', summary: '', content: '' })
+const emptyArticle = () => ({ title: '', practice_area_ids: [], jurisdiction_ids: [], author_id: '', published_at: today(), image_url: '', tile_image_url: '', summary: '', content: '' })
 const hasText = (html) => html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim() !== ''
 
 // Home page positions shown on the Organise Articles page (the Editor in Chief section sits separately below the articles).
@@ -239,6 +240,7 @@ function OrganiseMembers({ onAuthError }) {
 
 // Checks the article before it is sent (the server checks again).
 function validateArticle(v) {
+  for (const g of GROUPS) if (!v[g.field].length) throw new Error(`Please tick at least one ${g.one}.`)
   if (!v.published_at) throw new Error('Please choose a publication date.')
   if (!v.image_url) throw new Error('Please choose the article image (top of the article).')
   if (!v.tile_image_url) throw new Error('Please choose the article tile image (background of the article button).')
@@ -251,6 +253,77 @@ const toEditorHtml = (content) => (/<\/?[a-z][\s\S]*?>/i.test(content)
   ? content
   : content.split(/\n{2,}/).filter(Boolean).map((p) => `<p>${escapeHtml(p)}</p>`).join(''))
 
+// Choose the article's areas of law or jurisdictions (one or more). "Add a new …" lets the editor create one, which is
+// then ticked here and appears in that drop-down in the site menu.
+function GroupPicker({ group, value, onChange, onAuthError }) {
+  const [areas, setAreas] = useState(null)
+  const [adding, setAdding] = useState(false)
+  const [name, setName] = useState('')
+  const [msg, setMsg] = useState({ type: '', text: '' })
+
+  useEffect(() => {
+    group.list().then(setAreas).catch((err) => setMsg({ type: 'error', text: err.message }))
+  }, [group])
+
+  function toggle(id) {
+    setMsg({ type: '', text: '' })
+    onChange(value.includes(id) ? value.filter((x) => x !== id) : [...value, id])
+  }
+
+  async function add() {
+    if (!name.trim()) { setMsg({ type: 'error', text: `Please type the name of the new ${group.one}.` }); return }
+    try {
+      const area = await group.add(name.trim())
+      const id = String(area.id)
+      // Reload so the new one sits where the menu shows it (alphabetical, after any pinned to the top).
+      setAreas(await group.list())
+      if (!value.includes(id)) onChange([...value, id])
+      setAdding(false)
+      setName('')
+      setMsg({ type: 'ok', text: area.existed ? `"${area.name}" already exists, so it has been selected.` : `"${area.name}" added and selected. It now appears in the ${group.menuLabel} menu.` })
+    } catch (err) {
+      if (err.status === 401) onAuthError()
+      else setMsg({ type: 'error', text: err.message })
+    }
+  }
+
+  return (
+    <fieldset className="field area-picker">
+      <legend className="field-label">{group.legend} <span className="req">*</span></legend>
+      {!areas && !msg.text && <p className="hint">Loading…</p>}
+      {areas && (
+        <div className="area-options">
+          {areas.map((a) => (
+            <label key={a.id} className="area-option">
+              <input type="checkbox" checked={value.includes(String(a.id))} onChange={() => toggle(String(a.id))} />
+              {a.name}
+            </label>
+          ))}
+        </div>
+      )}
+      {!adding && (
+        <button type="button" className="link-button" onClick={() => { setAdding(true); setMsg({ type: '', text: '' }) }}>
+          + Add a new {group.one}
+        </button>
+      )}
+      {adding && (
+        <div className="add-area">
+          <input
+            value={name} onChange={(e) => setName(e.target.value)} maxLength={100} autoFocus
+            placeholder={group.example} aria-label={`Name of the new ${group.one}`}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add() } }}
+          />
+          <button type="button" className="btn btn-small" onClick={add}>Add</button>
+          <button type="button" className="btn btn-outline btn-small" onClick={() => { setAdding(false); setName(''); setMsg({ type: '', text: '' }) }}>Cancel</button>
+        </div>
+      )}
+      {msg.text
+        ? <small className={msg.type === 'ok' ? 'success' : 'error'}>{msg.text}</small>
+        : <small>{group.help}</small>}
+    </fieldset>
+  )
+}
+
 // The article form fields, shared by the Add and Edit pages.
 function ArticleFields({ v, set, setValue, authors, onAuthError }) {
   return (
@@ -258,6 +331,9 @@ function ArticleFields({ v, set, setValue, authors, onAuthError }) {
       <label>Title <span className="req">*</span>
         <input value={v.title} onChange={set('title')} maxLength={255} required />
       </label>
+      {GROUPS.map((g) => (
+        <GroupPicker key={g.key} group={g} value={v[g.field]} onChange={(ids) => setValue(g.field, ids)} onAuthError={onAuthError} />
+      ))}
       <div className="field-row">
         <label>Author <span className="req">*</span>
           <select value={v.author_id} onChange={set('author_id')} required>
@@ -288,7 +364,7 @@ function ArticleFields({ v, set, setValue, authors, onAuthError }) {
         <span className="field-label">Article <span className="req">*</span></span>
         <RichTextEditor
           value={v.content} onChange={(html) => setValue('content', html)}
-          helpText="Write the article here. Select some words and use the buttons above to make a subheading, bold them, or turn them into a link."
+          helpText="Write the article here. Select some words and use the buttons above to make a subheading, bold them, or turn them into a link. Use Insert table to add a table; click inside a table to add or remove rows and columns."
         />
       </div>
     </>
@@ -323,6 +399,7 @@ function EditArticle({ onAuthError }) {
   }
   const initial = data && {
     title: data.title || '',
+    ...Object.fromEntries(GROUPS.map((g) => [g.field, (data[g.out] || []).map((a) => String(a.id))])),
     author_id: data.author_id ? String(data.author_id) : '',
     published_at: data.published_date || today(),
     image_url: data.image_url || '',
@@ -397,6 +474,89 @@ function ManageContent({ onAuthError }) {
   )
 }
 
+// One list (areas of law or jurisdictions) on the Areas & Jurisdictions page: add new ones, delete mistakes.
+function GroupManager({ group, onAuthError }) {
+  const [items, setItems] = useState(null)
+  const [name, setName] = useState('')
+  const [msg, setMsg] = useState({ type: '', text: '' })
+
+  const fail = (err) => { if (err.status === 401) onAuthError(); else setMsg({ type: 'error', text: err.message }) }
+  const load = () => group.adminList().then(setItems).catch(fail)
+  useEffect(() => { load() }, [group]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function add(e) {
+    e.preventDefault()
+    if (!name.trim()) { setMsg({ type: 'error', text: `Please type the name of the new ${group.one}.` }); return }
+    try {
+      const created = await group.add(name.trim())
+      setName('')
+      setMsg({ type: 'ok', text: created.existed ? `"${created.name}" is already on the list.` : `"${created.name}" added. It now appears in the ${group.menuLabel} menu.` })
+      load()
+    } catch (err) { fail(err) }
+  }
+
+  async function remove(item) {
+    const n = Number(item.article_count)
+    const only = Number(item.only_count)
+    let question = `Delete "${item.name}"? It will be removed from the ${group.menuLabel} menu and its page will no longer exist.`
+    if (n > 0) {
+      question += `\n\n${n} article${n === 1 ? ' is' : 's are'} listed under it. ${n === 1 ? 'It' : 'They'} will be kept, just no longer listed under "${item.name}".`
+      if (only > 0) question += `\n\n${only === 1 ? '1 of these articles has' : `${only} of these articles have`} no other ${group.one}: you will need to tick another before ${only === 1 ? 'it' : 'they'} can be saved again.`
+    }
+    if (!window.confirm(question)) return
+    try {
+      await group.remove(item.id)
+      setMsg({ type: 'ok', text: `"${item.name}" deleted.` })
+      load()
+    } catch (err) { fail(err) }
+  }
+
+  return (
+    <section>
+      <h3>{group.menuLabel} ({items ? items.length : '…'})</h3>
+      <ul className="manage-list">
+        {items && items.map((item) => (
+          <li key={item.id}>
+            <span>
+              {item.name}
+              <small> · {Number(item.article_count) === 1 ? '1 article' : `${item.article_count} articles`}</small>
+            </span>
+            <span className="row-actions">
+              <Link className="btn-edit" to={`${group.basePath}/${item.slug}`} target="_blank" rel="noreferrer">View</Link>
+              <button className="btn-danger" onClick={() => remove(item)}>Delete</button>
+            </span>
+          </li>
+        ))}
+        {items && items.length === 0 && <li>None yet.</li>}
+      </ul>
+      <form className="add-area group-add" onSubmit={add}>
+        <input
+          value={name} onChange={(e) => { setName(e.target.value); setMsg({ type: '', text: '' }) }} maxLength={100}
+          placeholder={group.example} aria-label={`Name of the new ${group.one}`}
+        />
+        <button className="btn btn-small">Add</button>
+      </form>
+      {msg.text && <p className={msg.type === 'ok' ? 'success' : 'error'}>{msg.text}</p>}
+    </section>
+  )
+}
+
+function ManageGroups({ onAuthError }) {
+  return (
+    <>
+      <h1>Areas of law and jurisdictions</h1>
+      <p className="hint">
+        These are the lists in the site menu and the boxes ticked on each article. Add a new one here or while writing an
+        article. Deleting one (for example, if it was added by mistake) keeps its articles; they are just no longer listed
+        under it.
+      </p>
+      <div className="admin-grid">
+        {GROUPS.map((g) => <GroupManager key={g.key} group={g} onAuthError={onAuthError} />)}
+      </div>
+    </>
+  )
+}
+
 function OrganiseArticles({ onAuthError }) {
   const { articles, actionError, run } = useAdminData(onAuthError)
   const holder = (slot) => (articles || []).find((a) => a.home_slot === slot)
@@ -454,6 +614,7 @@ function AdminShell({ onLogout }) {
         <NavLink to="/admin/manage">Manage Content</NavLink>
         <NavLink to="/admin/organise">Organise Articles</NavLink>
         <NavLink to="/admin/organise-members">Organise Members</NavLink>
+        <NavLink to="/admin/areas-jurisdictions">Areas &amp; Jurisdictions</NavLink>
         <button className="admin-logout" onClick={onLogout}>Log out</button>
       </aside>
       <section className="admin-content">
@@ -464,6 +625,7 @@ function AdminShell({ onLogout }) {
           <Route path="manage" element={<ManageContent onAuthError={onLogout} />} />
           <Route path="organise" element={<OrganiseArticles onAuthError={onLogout} />} />
           <Route path="organise-members" element={<OrganiseMembers onAuthError={onLogout} />} />
+          <Route path="areas-jurisdictions" element={<ManageGroups onAuthError={onLogout} />} />
           <Route path="edit-author/:id" element={<EditAuthor onAuthError={onLogout} />} />
           <Route path="edit-article/:id" element={<EditArticle onAuthError={onLogout} />} />
           <Route path="*" element={<Navigate to="add-author" replace />} />

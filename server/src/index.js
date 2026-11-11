@@ -96,16 +96,54 @@ app.get('/api/authors/:id', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// Article list columns, shared by the Articles list and the area-of-law pages.
+const ARTICLE_LIST_SQL = `SELECT a.id, a.title, a.summary, a.image_url, a.tile_image_url, a.created_at, a.author_id, a.home_slot,
+    l.name AS author_name
+  FROM articles a LEFT JOIN authors l ON l.id = a.author_id`;
+
 app.get('/api/articles', async (_req, res, next) => {
   try {
-    const [rows] = await pool.query(
-      `SELECT a.id, a.title, a.summary, a.image_url, a.tile_image_url, a.created_at, a.author_id, a.home_slot, l.name AS author_name
-       FROM articles a LEFT JOIN authors l ON l.id = a.author_id
-       ORDER BY a.created_at DESC, a.id DESC`
-    );
+    const [rows] = await pool.query(`${ARTICLE_LIST_SQL} ORDER BY a.created_at DESC, a.id DESC`);
     res.json(rows);
   } catch (e) { next(e); }
 });
+
+// The ways articles are grouped: areas of law and jurisdictions. Each article can be in several of each; each group
+// has a page and appears in the site menu. Keyed by the URL path. Table/column names are fixed here (never user input)
+// and passed to queries as ?? identifiers.
+const TAXONOMIES = {
+  'practice-areas': {
+    table: 'practice_areas', link: 'article_practice_areas', fk: 'practice_area_id', field: 'practice_area_ids',
+    out: 'practice_areas', order: 'name', one: 'area of law', many: 'areas of law', Title: 'Area of law',
+  },
+  jurisdictions: {
+    table: 'jurisdictions', link: 'article_jurisdictions', fk: 'jurisdiction_id', field: 'jurisdiction_ids',
+    out: 'jurisdictions', order: 'sort_order', one: 'jurisdiction', many: 'jurisdictions', Title: 'Jurisdiction',
+  },
+};
+
+for (const [route, t] of Object.entries(TAXONOMIES)) {
+  // The full list, in menu order (the site menu and the article form use it).
+  app.get(`/api/${route}`, async (_req, res, next) => {
+    try {
+      const [rows] = await pool.query('SELECT id, name, slug FROM ?? ORDER BY ??, name', [t.table, t.order]);
+      res.json(rows);
+    } catch (e) { next(e); }
+  });
+
+  // One group and its articles, newest first.
+  app.get(`/api/${route}/:slug`, async (req, res, next) => {
+    try {
+      const [[group]] = await pool.query('SELECT id, name, slug FROM ?? WHERE slug = ?', [t.table, req.params.slug]);
+      if (!group) return res.status(404).json({ error: `${t.Title} not found.` });
+      const [articles] = await pool.query(
+        `${ARTICLE_LIST_SQL} JOIN ?? g ON g.article_id = a.id
+         WHERE g.?? = ? ORDER BY a.created_at DESC, a.id DESC`, [t.link, t.fk, group.id]
+      );
+      res.json({ ...group, articles });
+    } catch (e) { next(e); }
+  });
+}
 
 app.get('/api/articles/:id', async (req, res, next) => {
   try {
@@ -116,6 +154,13 @@ app.get('/api/articles/:id', async (req, res, next) => {
     );
     if (!rows.length) return res.status(404).json({ error: 'Article not found.' });
     const article = rows[0];
+    for (const t of Object.values(TAXONOMIES)) {
+      const [groups] = await pool.query(
+        'SELECT g.id, g.name, g.slug FROM ?? l JOIN ?? g ON g.id = l.?? WHERE l.article_id = ? ORDER BY g.??, g.name',
+        [t.link, t.table, t.fk, article.id, t.order]
+      );
+      article[t.out] = groups;
+    }
     if (looksLikeHtml(article.content)) article.content = cleanHtml(article.content);
     res.json(article);
   } catch (e) { next(e); }
@@ -188,6 +233,17 @@ async function articleValues(body) {
   const [[author]] = await pool.query('SELECT id FROM authors WHERE id = ?', [authorId]);
   if (!author) return { error: 'That author no longer exists.' };
 
+  // At least one area of law and one jurisdiction. groups = { practice_areas: [ids], jurisdictions: [ids] }.
+  const groups = {};
+  for (const t of Object.values(TAXONOMIES)) {
+    const ids = [...new Set((Array.isArray(body[t.field]) ? body[t.field] : []).map(Number))];
+    if (!ids.length) return { error: `Please choose at least one ${t.one}.` };
+    if (ids.some((n) => !Number.isInteger(n) || n < 1)) return { error: `Invalid ${t.one}.` };
+    const [found] = await pool.query('SELECT id FROM ?? WHERE id IN (?)', [t.table, ids]);
+    if (found.length !== ids.length) return { error: `One of the chosen ${t.many} no longer exists.` };
+    groups[t.out] = ids;
+  }
+
   const date = String(body.published_at || '');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(Date.parse(date))) return { error: 'Please choose a publication date.' };
 
@@ -200,36 +256,98 @@ async function articleValues(body) {
   const content = cleanHtml(body.content);
   if (isEmptyHtml(content)) return { error: 'Please write the article.' };
 
-  return { values: { title, summary: str(body.summary, 500), imageUrl, tileImageUrl, content, authorId, date } };
+  return { values: { title, summary: str(body.summary, 500), imageUrl, tileImageUrl, content, authorId, groups, date } };
+}
+
+// Replace an article's areas of law and jurisdictions (inside the caller's transaction).
+async function setArticleGroups(conn, articleId, groups) {
+  for (const t of Object.values(TAXONOMIES)) {
+    await conn.query('DELETE FROM ?? WHERE article_id = ?', [t.link, articleId]);
+    await conn.query('INSERT INTO ?? (article_id, ??) VALUES ?', [t.link, t.fk, groups[t.out].map((id) => [articleId, id])]);
+  }
 }
 
 app.post('/api/admin/articles', requireAdmin, async (req, res, next) => {
+  let conn;
   try {
     const { error, values: v } = await articleValues(req.body);
     if (error) return res.status(400).json({ error });
-    const [r] = await pool.query(
+    conn = await pool.getConnection();
+    await conn.beginTransaction();
+    const [r] = await conn.query(
       'INSERT INTO articles (title, summary, image_url, tile_image_url, content, author_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
       [v.title, v.summary, v.imageUrl, v.tileImageUrl, v.content, v.authorId, `${v.date} 12:00:00`]
     );
+    await setArticleGroups(conn, r.insertId, v.groups);
+    await conn.commit();
     res.status(201).json({ id: r.insertId });
-  } catch (e) { next(e); }
+  } catch (e) { if (conn) await conn.rollback(); next(e); } finally { if (conn) conn.release(); }
 });
 
 app.put('/api/admin/articles/:id', requireAdmin, async (req, res, next) => {
+  let conn;
   try {
     const { error, values: v } = await articleValues(req.body);
     if (error) return res.status(400).json({ error });
+    conn = await pool.getConnection();
+    await conn.beginTransaction();
     // The publication time is only changed if the date was changed (so saving a fix keeps the article's position).
-    const [r] = await pool.query(
+    const [r] = await conn.query(
       `UPDATE articles SET title = ?, summary = ?, image_url = ?, tile_image_url = ?, content = ?, author_id = ?,
          created_at = IF(DATE(created_at) = ?, created_at, CONCAT(?, ' 12:00:00'))
        WHERE id = ?`,
       [v.title, v.summary, v.imageUrl, v.tileImageUrl, v.content, v.authorId, v.date, v.date, req.params.id]
     );
-    if (!r.affectedRows) return res.status(404).json({ error: 'Article not found.' });
+    if (!r.affectedRows) { await conn.rollback(); return res.status(404).json({ error: 'Article not found.' }); }
+    await setArticleGroups(conn, Number(req.params.id), v.groups);
+    await conn.commit();
     res.json({ ok: true });
-  } catch (e) { next(e); }
+  } catch (e) { if (conn) await conn.rollback(); next(e); } finally { if (conn) conn.release(); }
 });
+
+// Add an area of law or jurisdiction: body { name }. Returns the new one (or the existing one if the name is already
+// there). New jurisdictions get the default sort order, so they are listed alphabetically below the pinned ones.
+for (const [route, t] of Object.entries(TAXONOMIES)) {
+  app.post(`/api/admin/${route}`, requireAdmin, async (req, res, next) => {
+    try {
+      const name = str(req.body.name, 100).replace(/\s+/g, ' ');
+      if (!name) return res.status(400).json({ error: `Please enter the name of the ${t.one}.` });
+      const slug = name.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 120);
+      if (!slug) return res.status(400).json({ error: 'The name needs at least one letter or number.' });
+      // Names are compared case-insensitively (the column's collation), so "employment" matches "Employment".
+      const [[existing]] = await pool.query('SELECT id, name, slug FROM ?? WHERE name = ? OR slug = ?', [t.table, name, slug]);
+      if (existing) return res.json({ ...existing, existed: true });
+      const [r] = await pool.query('INSERT INTO ?? (name, slug) VALUES (?, ?)', [t.table, name, slug]);
+      res.status(201).json({ id: r.insertId, name, slug });
+    } catch (e) { next(e); }
+  });
+
+  // Admin list, in menu order, with how many articles use each one (and how many use only that one, so would be
+  // left with none if it were deleted).
+  app.get(`/api/admin/${route}`, requireAdmin, async (_req, res, next) => {
+    try {
+      const [rows] = await pool.query(
+        `SELECT g.id, g.name, g.slug,
+           (SELECT COUNT(*) FROM ?? l WHERE l.?? = g.id) AS article_count,
+           (SELECT COUNT(*) FROM ?? l WHERE l.?? = g.id
+              AND (SELECT COUNT(*) FROM ?? o WHERE o.article_id = l.article_id) = 1) AS only_count
+         FROM ?? g ORDER BY g.??, g.name`,
+        [t.link, t.fk, t.link, t.fk, t.link, t.table, t.order]
+      );
+      res.json(rows);
+    } catch (e) { next(e); }
+  });
+
+  // Delete one (e.g. added by mistake). Its articles are kept; they just stop being listed under it.
+  app.delete(`/api/admin/${route}/:id`, requireAdmin, async (req, res, next) => {
+    try {
+      const [r] = await pool.query('DELETE FROM ?? WHERE id = ?', [t.table, req.params.id]);
+      if (!r.affectedRows) return res.status(404).json({ error: `${t.Title} not found.` });
+      res.json({ ok: true });
+    } catch (e) { next(e); }
+  });
+}
 
 app.delete('/api/admin/authors/:id', requireAdmin, async (req, res, next) => {
   try {

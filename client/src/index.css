@@ -44,6 +44,61 @@ nav { display: flex; gap: 20px; }
 nav a { color: var(--color-heading); text-decoration: none; font-weight: 600; padding: 4px 0; border-bottom: 2px solid transparent; }
 nav a:hover, nav a.active { border-bottom-color: var(--color-teal); }
 
+/* "Areas of Law" drop-down in the site menu. */
+.nav-dropdown { position: relative; }
+.nav-dropdown-toggle { background: none; border: 0; border-bottom: 2px solid transparent; padding: 4px 0; font: inherit; font-weight: 600; color: var(--color-heading); cursor: pointer; }
+.nav-dropdown-toggle:hover, .nav-dropdown-toggle.active, .nav-dropdown-toggle[aria-expanded="true"] { border-bottom-color: var(--color-teal); }
+.nav-dropdown-toggle .caret { font-size: 0.75em; margin-left: 2px; }
+.nav-dropdown-menu { position: absolute; top: 100%; left: 0; z-index: 50; list-style: none; margin: 0; padding: 8px 0; min-width: 260px; max-width: calc(100vw - 32px); background: var(--color-header-bg); border: 1px solid var(--color-border); border-top: 3px solid var(--color-teal); border-radius: 0 0 6px 6px; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12); }
+.nav-dropdown-menu a { display: block; padding: 8px 16px; border-bottom: 0; font-weight: 500; }
+.nav-dropdown-menu a:hover, .nav-dropdown-menu a.active { background: var(--color-surface); color: var(--color-teal-dark); }
+.nav-dropdown-menu .empty { padding: 8px 16px; color: var(--color-muted); }
+
+/* Header layout: logo on the left, menu then the theme switch (and, on phones, the hamburger) on the right. */
+.header-inner { justify-content: flex-start; gap: 8px 24px; }
+nav { margin-left: auto; }
+.header-actions { display: flex; align-items: center; gap: 8px; }
+.menu-toggle { display: none; align-items: center; justify-content: center; width: 38px; height: 38px; padding: 0; background: transparent; color: var(--color-heading); border: 1px solid var(--color-border); border-radius: 6px; cursor: pointer; }
+.menu-toggle:hover, .menu-toggle[aria-expanded="true"] { border-color: var(--color-teal); color: var(--color-teal-dark); }
+.menu-toggle svg { width: 22px; height: 22px; }
+
+/* Phones and small tablets: hamburger menu. The links open in a panel under the header bar; the theme switch stays
+   in the bar. Drop-downs (Areas of Law, Jurisdictions) expand in place inside the panel. */
+@media (max-width: 900px) {
+  .header-inner { flex-wrap: wrap; }
+  .logo-link { min-width: 0; }
+  .logo { max-width: 100%; height: auto; max-height: 44px; }
+  .header-actions { margin-left: auto; }
+  .menu-toggle { display: inline-flex; }
+  .header-inner nav { display: none; order: 3; flex-basis: 100%; margin: 0 0 8px; flex-direction: column; align-items: stretch; gap: 0; border-top: 1px solid var(--color-border); }
+  .header-inner nav.open { display: flex; }
+  .nav-dropdown { width: 100%; }
+  nav a, .nav-dropdown-toggle { display: flex; width: 100%; padding: 12px 4px; border-bottom: 1px solid var(--color-border); text-align: left; }
+  nav a:hover, nav a.active { border-bottom-color: var(--color-border); color: var(--color-teal-dark); }
+  .nav-dropdown-toggle { justify-content: space-between; align-items: center; }
+  .nav-dropdown-toggle:hover, .nav-dropdown-toggle.active, .nav-dropdown-toggle[aria-expanded="true"] { border-bottom-color: var(--color-border); color: var(--color-teal-dark); }
+  .nav-dropdown-toggle .caret { transition: transform 0.15s; }
+  .nav-dropdown.open .caret { transform: rotate(180deg); }
+  .nav-dropdown-menu { position: static; min-width: 0; max-width: none; padding: 0; border: 0; border-radius: 0; box-shadow: none; background: var(--color-surface); }
+  .nav-dropdown-menu a { padding: 10px 4px 10px 20px; }
+}
+.eyebrow { margin: 0; color: var(--color-teal-dark); font-weight: 700; font-size: 0.85rem; letter-spacing: 0.08em; text-transform: uppercase; }
+.eyebrow + h1 { margin-top: 4px; }
+.add-area { display: flex; gap: 8px; margin-top: 8px; }
+.add-area input { flex: 1; }
+.btn-small { padding: 6px 14px; }
+.group-add { margin-top: 12px; }
+.group-add input { font: inherit; padding: 8px 10px; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-field); color: var(--color-text); min-width: 0; }
+.group-add input:focus { outline: 2px solid var(--color-teal); border-color: var(--color-teal); }
+.add-area .btn-outline { color: var(--color-heading); }
+.area-picker { border: 0; margin: 0; padding: 0; min-width: 0; }
+.area-picker legend { padding: 0; margin-bottom: 6px; }
+.area-options { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 6px 18px; padding: 12px 14px; background: var(--color-field); border: 1px solid var(--color-border); border-radius: 6px; }
+.form .area-option { flex-direction: row; align-items: center; gap: 8px; font-weight: 400; color: var(--color-text); cursor: pointer; }
+.area-option input { width: 17px; height: 17px; margin: 0; accent-color: var(--color-teal); flex-shrink: 0; }
+.link-button { align-self: flex-start; background: none; border: 0; padding: 2px 0; font: inherit; font-weight: 600; color: var(--color-teal-dark); cursor: pointer; }
+.link-button:hover { text-decoration: underline; }
+
 .site-footer { background: var(--color-navy); color: #fff; padding: 20px 0; font-size: 0.9rem; }
 
 .hero { background: var(--color-navy); color: #fff; padding: 56px 32px; border-radius: 8px; margin-bottom: 40px; }
@@ -293,6 +348,35 @@ nav { align-items: center; }
 .modal .error { margin: 10px 0 0; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
 .modal-actions .btn-outline { color: var(--color-heading); }
+.modal .field-row { gap: 14px; margin-bottom: 14px; }
+.modal .checkbox-label { flex-direction: row; align-items: center; gap: 10px; margin-bottom: 14px; cursor: pointer; }
+.modal .checkbox-label input { width: 18px; height: 18px; padding: 0; margin: 0; accent-color: var(--color-teal); }
+
+/* Table buttons: shown under the main toolbar while the cursor is in a table. */
+.rt-table-toolbar { border-top: 1px dashed var(--color-border); align-items: center; padding-top: 10px; margin-top: -6px; }
+.rt-toolbar-label { font-weight: 700; color: var(--color-heading); font-size: 0.9rem; margin-right: 2px; }
+.rt-table-toolbar .rt-button { padding: 6px 12px; font-size: 0.9rem; }
+.rt-button.rt-danger:hover { border-color: var(--color-danger); color: var(--color-danger); }
+
+/* "Edit in HTML": pinned to the right of the toolbar; the HTML box replaces the formatted editor. */
+.rt-button:disabled { opacity: 0.45; cursor: not-allowed; border-color: var(--color-border); color: var(--color-text); }
+.rt-html-toggle { margin-left: auto; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.88rem; }
+.rt-html-toggle.active { background: var(--color-navy); border-color: var(--color-navy); color: #fff; }
+.rt-html-toggle.active:hover { color: #fff; border-color: var(--color-teal); }
+.rt-area[hidden] { display: none; }
+.rt-html { display: flex; flex-direction: column; gap: 6px; }
+.rt .rt-html-area { min-height: 380px; margin-top: -6px; padding: 16px 18px; border-radius: 0 0 6px 6px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.88rem; line-height: 1.55; tab-size: 2; white-space: pre; overflow: auto; resize: vertical; }
+
+/* Tables in articles (the published page and the editor). On narrow screens a wide table scrolls sideways. */
+.article-body table { width: 100%; border-collapse: collapse; margin: 0 0 1.2em; font-size: 0.95em; }
+.article-body th, .article-body td { border: 1px solid var(--color-border); padding: 8px 12px; text-align: left; vertical-align: top; }
+.article-body th { background: var(--color-surface); color: var(--color-heading); font-weight: 700; }
+.article-body thead th { border-bottom: 2px solid var(--color-teal); }
+.article-body td > p:last-child, .article-body th > p:last-child { margin-bottom: 0; }
+.rt-area table td, .rt-area table th { min-width: 60px; height: 1.6em; }
+@media (max-width: 720px) {
+  .article-body table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+}
 
 /* Article tiles: featured image as the background, dark overlay, text in front (home page and Articles page) */
 .tile { position: relative; display: flex; align-items: flex-end; min-height: 300px; border-radius: 8px; overflow: hidden; color: #fff; background: var(--color-navy) center / cover no-repeat; box-shadow: 0 2px 10px var(--shadow); }
