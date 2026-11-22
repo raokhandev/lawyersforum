@@ -431,6 +431,12 @@ nav { align-items: center; }
 .carousel-btn:disabled { opacity: 0.35; cursor: default; }
 .carousel-track { display: flex; gap: 16px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; padding-bottom: 2px; }
 .carousel-track::-webkit-scrollbar { display: none; }
+.carousel-row { display: flex; align-items: center; gap: 12px; }
+.carousel-row .carousel-track { flex: 1; min-width: 0; }
+.carousel-dots { display: flex; justify-content: center; gap: 8px; margin-top: 16px; }
+.carousel-dots button { width: 10px; height: 10px; padding: 0; border-radius: 50%; border: 1px solid var(--color-teal); background: transparent; cursor: pointer; }
+.carousel-dots button.active { background: var(--color-teal); }
+@media (max-width: 480px) { .carousel-row { gap: 6px; } .carousel-sides .carousel-btn { width: 34px; height: 34px; } }
 .carousel-item { flex: 0 0 calc((100% - 3 * 16px) / 4); scroll-snap-align: start; min-width: 0; }
 .carousel-item .tile { height: 100%; min-height: 260px; }
 @media (max-width: 1023px) { .carousel-item { flex-basis: calc((100% - 2 * 16px) / 3); } }

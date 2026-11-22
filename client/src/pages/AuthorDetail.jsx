@@ -34,7 +34,7 @@ export default function AuthorDetail() {
       )}
       {data && articles.length > 0 && (
         <section className="more-by-author author-articles">
-          <ArticleCarousel articles={articles} label={`Articles by ${data.name}`} />
+          <ArticleCarousel sides articles={articles} label={`Articles by ${data.name}`} />
         </section>
       )}
     </>
