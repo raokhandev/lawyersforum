@@ -421,6 +421,7 @@ nav { align-items: center; }
 .date-link.muted { color: var(--color-muted); font-weight: 400; }
 
 /* Under every article: author card + "More articles by ..." row */
+.author-articles { margin-top: 56px; }
 .after-article { margin-top: 56px; display: flex; flex-direction: column; gap: 48px; }
 .carousel-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
 .carousel-head h2 { margin: 0; font-size: 1.5rem; }

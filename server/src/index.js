@@ -92,7 +92,9 @@ app.get('/api/authors/:id', async (req, res, next) => {
   try {
     const [rows] = await pool.query('SELECT * FROM authors WHERE id = ?', [req.params.id]);
     if (!rows.length) return res.status(404).json({ error: 'Author not found.' });
-    res.json(rows[0]);
+    const author = rows[0];
+    if (looksLikeHtml(author.description)) author.description = cleanHtml(author.description);
+    res.json(author);
   } catch (e) { next(e); }
 });
 
@@ -170,12 +172,20 @@ app.get('/api/articles/:id', async (req, res, next) => {
 app.post('/api/admin/login', login);
 
 // Author fields shared by create and update. Returns { error } or { values } (in column order).
+// The biography is written with the rich text editor (HTML, cleaned here). Older ones are plain text and stay as is.
+function authorDescription(v) {
+  const text = String(v ?? '').trim();
+  if (!looksLikeHtml(text)) return text.slice(0, 30000);
+  const html = cleanHtml(text);
+  return isEmptyHtml(html) ? '' : html.slice(0, 30000);
+}
+
 function authorValues(body) {
   const name = str(body.name, 150);
   if (!name) return { error: 'Name is required.' };
   return {
     values: [name, str(body.title, 150), str(body.practice_area, 150), str(body.summary, 700),
-      str(body.description, 10000), str(body.email, 190), str(body.photo_url, 500)],
+      authorDescription(body.description), str(body.email, 190), str(body.photo_url, 500)],
   };
 }
 

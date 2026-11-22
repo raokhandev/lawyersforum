@@ -106,10 +106,13 @@ function AuthorFields({ v, set, setValue, onAuthError }) {
         <textarea rows="4" maxLength={SUMMARY_MAX} value={v.summary} onChange={set('summary')} />
         <small>{v.summary.length}/{SUMMARY_MAX} characters</small>
       </label>
-      <label>Description (shown on the author&apos;s own page)
-        <textarea rows="10" value={v.description} onChange={set('description')} />
-        <small>Separate paragraphs with a blank line.</small>
-      </label>
+      <div className="field">
+        <span className="field-label">Biography (shown on the author&apos;s own page)</span>
+        <RichTextEditor
+          value={v.description} onChange={(html) => setValue('description', html)}
+          helpText="Select some words and use the buttons above to make a subheading, bold them, or turn them into a link. The author's articles are listed automatically underneath."
+        />
+      </div>
     </>
   )
 }
@@ -133,7 +136,7 @@ function EditAuthor({ onAuthError }) {
     try { await api.updateAuthor(id, values) }
     catch (err) { if (err.status === 401) onAuthError(); throw err }
   }
-  const initial = data && Object.fromEntries(Object.keys(emptyAuthor).map((k) => [k, data[k] ?? '']))
+  const initial = data && { ...Object.fromEntries(Object.keys(emptyAuthor).map((k) => [k, data[k] ?? ''])), description: toEditorHtml(data.description || '') }
   return (
     <>
       <p><Link to="/admin/manage">← Back to Manage Content</Link></p>
