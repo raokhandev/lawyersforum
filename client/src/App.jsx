@@ -5,6 +5,7 @@ import Authors from './pages/Authors.jsx'
 import AuthorDetail from './pages/AuthorDetail.jsx'
 import Articles from './pages/Articles.jsx'
 import ArticleDetail from './pages/ArticleDetail.jsx'
+import WriteForUs from './pages/WriteForUs.jsx'
 import Admin from './pages/Admin.jsx'
 import GroupPage from './pages/GroupPage.jsx'
 import GroupMenu from './components/GroupMenu.jsx'
@@ -37,6 +38,7 @@ export default function App() {
             <NavLink to="/about">About Us</NavLink>
             {GROUPS.map((g) => <GroupMenu key={g.key} group={g} />)}
             <NavLink to="/articles">Articles</NavLink>
+            <NavLink to="/write-for-lawyers-forum">Write for Lawyers Forum</NavLink>
             <NavLink to="/admin">Admin</NavLink>
           </nav>
           {/* The theme switch stays in the header bar on every screen size; the hamburger only shows on phones. */}
@@ -61,6 +63,7 @@ export default function App() {
           <Route path="/about" element={<Authors />} />
           <Route path="/authors/:id" element={<AuthorDetail />} />
           <Route path="/articles" element={<Articles />} />
+          <Route path="/write-for-lawyers-forum" element={<WriteForUs />} />
           <Route path="/articles/:id" element={<ArticleDetail />} />
           {GROUPS.map((g) => <Route key={g.key} path={`${g.basePath}/:slug`} element={<GroupPage group={g} />} />)}
           <Route path="/admin/*" element={<Admin />} />

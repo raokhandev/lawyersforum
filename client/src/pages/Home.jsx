@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { api } from '../api.js'
 import useFetch from '../useFetch.js'
 import ArticleCard from '../components/ArticleCard.jsx'
+import EditorSection from '../components/EditorSection.jsx'
 import { EDITOR_NAME } from '../config.js'
 
 // Home page slots the admin can pin articles to (see Admin page). Empty slots are auto-filled with the newest unpinned articles.
@@ -20,24 +21,6 @@ function placeSlots(articles, order) {
   for (const slot of order) if (!out[slot]) out[slot] = free.shift()
   out.more = free
   return out
-}
-
-function EditorSection({ editor }) {
-  return (
-    <section>
-      <h2 className="section-title">About the Editor</h2>
-      <article className="profile editor-profile">
-        {editor.photo_url
-          ? <div className="profile-photo" role="img" aria-label={editor.name} style={{ backgroundImage: `url("${editor.photo_url}")` }} />
-          : <div className="profile-photo placeholder" aria-hidden="true">{editor.name.charAt(0)}</div>}
-        <div className="profile-body">
-          <h3>{editor.name}</h3>
-          {editor.summary && <p className="profile-summary">{editor.summary}</p>}
-          <p><Link className="btn" to={`/authors/${editor.id}`}>Read more</Link></p>
-        </div>
-      </article>
-    </section>
-  )
 }
 
 function Featured({ article }) {
